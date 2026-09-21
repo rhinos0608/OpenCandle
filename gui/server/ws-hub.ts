@@ -3,7 +3,12 @@ import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 import type { AgentSession, SessionEntry } from "@earendil-works/pi-coding-agent";
 import { probeProviderStatus } from "../../src/onboarding/provider-status.js";
-import { getProvider, type ProviderId } from "../../src/onboarding/providers.js";
+import {
+  getProvider,
+  isExternalToolProvider,
+  listAllProviders,
+  type ProviderId,
+} from "../../src/onboarding/providers.js";
 import {
   clearProviderOnboardingEntry,
   loadOnboardingState,
@@ -71,6 +76,7 @@ export interface WsHubOptions {
   onClientCountChanged: () => void;
   isTrustedRequest?: (req: IncomingMessage) => boolean;
   acceptWebSocketFn?: typeof acceptWebSocket;
+  probeProviderStatusFn?: typeof probeProviderStatus;
 }
 
 export function createWsHub({
@@ -88,6 +94,7 @@ export function createWsHub({
   onClientCountChanged,
   isTrustedRequest = () => true,
   acceptWebSocketFn = acceptWebSocket,
+  probeProviderStatusFn = probeProviderStatus,
 }: WsHubOptions): WsHub {
   const clients = new Set<WsClient>();
 
@@ -142,10 +149,14 @@ export function createWsHub({
         case "tool.enabled":
           if (role !== "writer") throw new Error("Read-only follower mode");
           setToolEnabled(String(data.toolName), Boolean(data.enabled));
-          broadcast({ type: "catalog", catalog: buildCatalog(), restartRequired: true });
+          broadcast({
+            type: "catalog",
+            catalog: await buildCatalogWithExternalToolStatus(),
+            restartRequired: true,
+          });
           break;
         case "catalog.refresh":
-          client.send({ type: "catalog", catalog: buildCatalog() });
+          client.send({ type: "catalog", catalog: await buildCatalogWithExternalToolStatus() });
           break;
         case "model.setup.refresh":
           await getSession().modelRuntime.refresh();
@@ -174,7 +185,7 @@ export function createWsHub({
             String(data.providerId ?? ""),
             String(data.apiKey ?? ""),
           );
-          broadcast({ type: "catalog", catalog: buildCatalog() });
+          broadcast({ type: "catalog", catalog: await buildCatalogWithExternalToolStatus() });
           break;
         case "provider.status.check": {
           const providerId = String(data.providerId ?? "") as ProviderId;
@@ -182,9 +193,9 @@ export function createWsHub({
           const mode = data.mode === "session" ? "session" : "install";
           if (data.reenable === true) {
             saveOnboardingState(clearProviderOnboardingEntry(loadOnboardingState(), providerId));
-            broadcast({ type: "catalog", catalog: buildCatalog() });
+            broadcast({ type: "catalog", catalog: await buildCatalogWithExternalToolStatus() });
           }
-          const status = await probeProviderStatus(providerId, { mode, force: true });
+          const status = await probeProviderStatusFn(providerId, { mode, force: true });
           client.send({ type: "provider.status", providerId, status });
           break;
         }
@@ -289,6 +300,35 @@ export function createWsHub({
     void listDisplaySessions(cwd, sessionDir).then((sessions) =>
       client.send({ type: "sessions", sessions }),
     );
+    // External CLI install checks are safe to run automatically: they only
+    // execute `--version`. Browser/session probes stay explicit because they
+    // may read browser cookies or trigger a Keychain prompt.
+    void buildCatalogWithExternalToolStatus()
+      .then((catalog) => client.send({ type: "catalog", catalog }))
+      .catch(() => undefined);
+  }
+
+  async function buildCatalogWithExternalToolStatus() {
+    const catalog = buildCatalog();
+    const externalProviders = listAllProviders().filter(isExternalToolProvider);
+    const statusPairs = await Promise.all(
+      externalProviders.map(async (provider) => {
+        try {
+          const status = await probeProviderStatusFn(provider.id, { mode: "install" });
+          return [provider.id, status] as const;
+        } catch {
+          return undefined;
+        }
+      }),
+    );
+    const statuses = new Map(statusPairs.filter((pair) => pair !== undefined));
+    return {
+      ...catalog,
+      providers: catalog.providers.map((provider) => {
+        const status = statuses.get(provider.id);
+        return status ? { ...provider, status: status.state, statusDetail: status } : provider;
+      }),
+    };
   }
 
   async function buildBootstrapPayload(): Promise<Record<string, unknown>> {
@@ -298,7 +338,7 @@ export function createWsHub({
       sessionId: sessionManager.getSessionId(),
       sessionPersisted: isSessionPersisted(sessionManager),
       coordination: coordinationStateForSession(sessionManager, role, lock),
-      catalog: buildCatalog(),
+      catalog: await buildCatalogWithExternalToolStatus(),
       modelSetup: modelSetupController.buildCurrentModelSetupState(),
       askUserPrompts: askUserBridge.getPrompts(),
       sessions: await listDisplaySessions(cwd, sessionDir),

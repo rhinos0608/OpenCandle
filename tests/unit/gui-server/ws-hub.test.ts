@@ -13,6 +13,7 @@ import type { SessionActionsController } from "../../../gui/server/session-actio
 import type { WsClient } from "../../../gui/server/websocket.js";
 import { acquireWriterLock, writerLockScopeForSession } from "../../../gui/server/writer-lock.js";
 import { createWsHub } from "../../../gui/server/ws-hub.js";
+import type { ProviderId } from "../../../src/onboarding/providers.js";
 
 describe("GUI WS hub", () => {
   let cwd: string;
@@ -69,6 +70,16 @@ describe("GUI WS hub", () => {
     await vi.waitFor(() =>
       expect(client.messages.some((message) => asRecord(message).type === "sessions")).toBe(true),
     );
+    await vi.waitFor(() => {
+      const catalogMessage = client.messages.find(
+        (message) => asRecord(message).type === "catalog",
+      );
+      const providers = asRecord(asRecord(catalogMessage).catalog).providers as
+        | Array<Record<string, unknown>>
+        | undefined;
+      expect(providers?.find((provider) => provider.id === "twitter")?.status).toBe("installed");
+      expect(providers?.find((provider) => provider.id === "reddit")?.status).toBe("installed");
+    });
 
     client.closeHandlers[0]?.();
 
@@ -151,6 +162,15 @@ describe("GUI WS hub", () => {
 
     hub.handleUpgrade({ url: "/ws" } as IncomingMessage, { destroy: vi.fn() } as unknown as Duplex);
     const bootstrap = await hub.buildBootstrapPayload();
+    const bootstrapProviders = asRecord(bootstrap.catalog).providers as
+      | Array<Record<string, unknown>>
+      | undefined;
+    expect(bootstrapProviders?.find((provider) => provider.id === "twitter")?.status).toBe(
+      "installed",
+    );
+    expect(bootstrapProviders?.find((provider) => provider.id === "reddit")?.status).toBe(
+      "installed",
+    );
 
     expect(client.messages[0]).toMatchObject({
       type: "boot",
@@ -321,6 +341,14 @@ describe("GUI WS hub", () => {
       } as ModelSetupController,
       toolInvokeController: {} as ToolInvokeController,
       sessionActionsController: {} as SessionActionsController,
+      probeProviderStatusFn: vi.fn(async (providerId: ProviderId) => ({
+        providerId,
+        kind: "external-tool" as const,
+        mode: "install" as const,
+        state: "installed" as const,
+        checkedAt: "2026-09-22T00:00:00.000Z",
+        cacheHit: false,
+      })),
       onClientCountChanged: vi.fn(),
     };
   }

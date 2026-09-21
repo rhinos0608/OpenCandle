@@ -424,6 +424,16 @@ describe("provider registry — credential helpers", () => {
     expect(hasCredential("blockchair")).toBe(true);
   });
 
+  it("primes config discovery before reporting GUI credential state", () => {
+    vi.mocked(configModule.getConfig).mockImplementationOnce(() => {
+      process.env.EXA_API_KEY = "atlas-exa";
+      return { ...DEFAULT_EMPTY_CONFIG, exaApiKey: "atlas-exa" };
+    });
+
+    expect(getCredential("exa")).toEqual({ source: "env", value: "atlas-exa" });
+    expect(configModule.getConfig).toHaveBeenCalled();
+  });
+
   it("getCredentialSource returns 'env' when the process env var is set", () => {
     process.env.ALPHA_VANTAGE_API_KEY = "test-key-av";
     expect(getCredentialSource("alpha_vantage")).toBe("env");
@@ -510,6 +520,7 @@ describe("provider registry — import safety", () => {
     // metadata.
     vi.resetModules();
     vi.doMock("../../../src/config.js", () => ({
+      getConfig: vi.fn(() => ({})),
       loadFileConfig: vi.fn(() => ({})),
     }));
     const configModule = await import("../../../src/config.js");

@@ -656,6 +656,13 @@ export function getCredential(
   const descriptor = getProvider(id);
   if (!isApiKeyProvider(descriptor)) return { source: "absent" };
 
+  // Prime the canonical config loader before inspecting process.env. Besides
+  // ~/.opencandle/config.json, loadConfig() selectively imports approved data
+  // provider credentials from Pi-Atlas/.env. The GUI catalog calls this helper
+  // directly, so without this initialization it can report a usable Pi-Atlas
+  // credential as absent until some unrelated tool happens to call getConfig().
+  getConfig();
+
   const envValue = process.env[descriptor.envVar];
   if (envValue && envValue.length > 0) return { source: "env", value: envValue };
 

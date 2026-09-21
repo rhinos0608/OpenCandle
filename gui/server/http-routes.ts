@@ -228,7 +228,11 @@ export function createHttpRequestHandler(options: GuiHttpRouteOptions) {
           String(body.providerId ?? ""),
           String(body.apiKey ?? ""),
         );
-        options.wsHub.broadcast({ type: "catalog", catalog: buildCatalog() });
+        const bootstrap = await options.wsHub.buildBootstrapPayload();
+        options.wsHub.broadcast({
+          type: "catalog",
+          catalog: bootstrap.catalog ?? buildCatalog(),
+        });
       });
       return;
     }
@@ -1085,7 +1089,7 @@ export async function buildSessionBootstrapPayload(
       marketStateWritable: roleForSessionBootstrap(options, sessionManager) === "writer",
       ownerKind: ownerKindForSessionBootstrap(options, sessionManager),
     },
-    catalog: buildCatalog(),
+    catalog: bootstrap.catalog ?? buildCatalog(),
     modelSetup: options.modelSetupController.buildCurrentModelSetupState(),
     askUserPrompts: Array.isArray(bootstrap.askUserPrompts) ? bootstrap.askUserPrompts : [],
     sessions: await listDisplaySessions(options.cwd, options.sessionDir),
