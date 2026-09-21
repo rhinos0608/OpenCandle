@@ -28,9 +28,13 @@ export const webSearchParameters = Type.Object({
     Type.Number({ description: "Number of results (1-20). Default: 10", minimum: 1, maximum: 20 }),
   ),
   provider: Type.Optional(
-    Type.Union([Type.Literal("exa"), Type.Literal("brave"), Type.Literal("ddg")], {
-      description: "Override search provider (skip cascade). Default: auto (Exa → Brave → DDG)",
-    }),
+    Type.Union(
+      [Type.Literal("pi-atlas"), Type.Literal("exa"), Type.Literal("brave"), Type.Literal("ddg")],
+      {
+        description:
+          "Override search provider (skip cascade). Default: auto (Pi-Atlas/Northstar → Exa → Brave → DDG)",
+      },
+    ),
   ),
 });
 
@@ -57,7 +61,7 @@ function buildSoftDegradedPrefix(data: WebSearchEnvelope): string {
     tags.push(
       buildSoftDegradedTag({
         provider: "brave",
-        fallback: data.provider === "exa" ? "exa" : "ddg",
+        fallback: data.provider,
         remediation: "run /connect search to enable Brave",
       }),
     );
@@ -111,7 +115,7 @@ function isOfficialFedSource(value: string): boolean {
 }
 
 export function createWebSearchTool(
-  allowedProviders?: readonly ("exa" | "brave" | "ddg")[],
+  allowedProviders?: readonly ("pi-atlas" | "exa" | "brave" | "ddg")[],
 ): AgentTool<typeof webSearchParameters, WebSearchEnvelope | null> & {
   __hostedAllowedProviders?: readonly string[];
 } {

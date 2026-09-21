@@ -6,6 +6,7 @@ import { rateLimiter } from "../infra/rate-limiter.js";
 import type { ProviderResult } from "../runtime/evidence.js";
 import type { WebSearchEnvelope, WebSearchResult } from "../types/sentiment.js";
 import { exaSearch } from "./exa-search.js";
+import { isPiAtlasAvailable, piAtlasSearch } from "./pi-atlas.js";
 import { ProviderCredentialError } from "./provider-credential-error.js";
 import { withFallback } from "./with-fallback.js";
 
@@ -14,9 +15,9 @@ export interface WebSearchOpts {
   freshness: "hours" | "day" | "week" | "month";
   limit: number;
   /** Override provider: skip cascade, use this provider only. */
-  provider?: "exa" | "brave" | "ddg";
-  /** Restrict automatic and explicit selection to runtime-negotiated providers. */
-  allowedProviders?: readonly ("exa" | "brave" | "ddg")[];
+  provider?: "pi-atlas" | "exa" | "brave" | "ddg";
+  /** Restrict automatic selection to runtime-negotiated providers. */
+  allowedProviders?: readonly ("pi-atlas" | "exa" | "brave" | "ddg")[];
 }
 
 const BARE_TICKER = /^[A-Z]{1,5}$/;
@@ -264,7 +265,7 @@ export async function searchWeb(
   const config = getConfig();
 
   const entries: Array<{ provider: string; fn: () => Promise<WebSearchEnvelope> }> = [];
-  const allowedProviders = resolved.allowedProviders ?? ["exa", "brave", "ddg"];
+  const allowedProviders = resolved.allowedProviders ?? ["pi-atlas", "exa", "brave", "ddg"];
 
   // Provider override: skip cascade, use only the specified provider
   if (resolved.provider) {
@@ -272,6 +273,9 @@ export async function searchWeb(
       return { status: "unavailable", reason: "provider not allowed", provider: resolved.provider };
     }
     switch (resolved.provider) {
+      case "pi-atlas":
+        entries.push({ provider: "pi-atlas", fn: () => piAtlasSearch(normalized, resolved) });
+        break;
       case "exa":
         entries.push({ provider: "exa", fn: () => exaSearch(normalized, resolved) });
         break;
@@ -298,7 +302,13 @@ export async function searchWeb(
     return withFallback<WebSearchEnvelope>(entries);
   }
 
-  // Default cascade: Exa → Brave → DDG, bounded by the negotiated runtime policy.
+  // Local default cascade: Pi-Atlas/Northstar → Exa → Brave → DDG.
+  // Hosted runtimes provide an allowlist that excludes the local subprocess provider.
+  if (allowedProviders.includes("pi-atlas") && isPiAtlasAvailable()) {
+    entries.push({ provider: "pi-atlas", fn: () => piAtlasSearch(normalized, resolved) });
+  }
+
+  // Remaining providers are bounded by the negotiated runtime policy.
   if (allowedProviders.includes("exa")) {
     entries.push({ provider: "exa", fn: () => exaSearch(normalized, resolved) });
   }

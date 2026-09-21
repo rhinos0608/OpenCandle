@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- Local installs can use a sibling Pi-Atlas/Northstar checkout as the first `search_web` provider and selectively reuse its allowlisted model/search/finance credentials without importing unrelated environment variables into OpenCandle or forwarding them to the Northstar subprocess.
+- Added read-only Blockchair blockchain investigation for supported Bitcoin-family chains and Ethereum, covering address activity, transaction structure, chain statistics, optional Bitcoin Privacy-o-meter evidence, Ethereum events, and optional keyed access through `BLOCKCHAIR_API_KEY`.
+
 ## [0.15.0] - 2026-09-21
 
 ### Changed

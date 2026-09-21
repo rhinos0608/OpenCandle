@@ -1,0 +1,35 @@
+{
+  "data": {
+    "abc123": {
+      "transaction": {
+        "block_id": 900000,
+        "hash": "abc123",
+        "time": "2026-09-20 12:00:00",
+        "input_count": 1,
+        "output_count": 2,
+        "input_total": 125000000,
+        "output_total": 124990000,
+        "fee": 10000
+      },
+      "inputs": [
+        { "recipient": "bc1qin", "value": 125000000 }
+      ],
+      "outputs": [
+        { "recipient": "bc1qout", "value": 100000000, "is_spent": true },
+        { "recipient": "bc1qchange", "value": 24990000, "is_spent": false }
+      ],
+      "privacy-o-meter": {
+        "type": "N2",
+        "score": 42,
+        "heuristics": ["round_values"],
+        "clusterized": ["bc1qin", "bc1qchange"]
+      }
+    }
+  },
+  "context": {
+    "code": 200,
+    "results": 1,
+    "state": 900000,
+    "request_cost": 11
+  }
+}

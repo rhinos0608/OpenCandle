@@ -98,6 +98,26 @@ describe("loadConfig", () => {
     expect(config.sentiment).toBeDefined();
   });
 
+  it("loads only approved shared keys from Pi-Atlas after the local .env", () => {
+    process.env.PI_ATLAS_HOME = "/Users/test/Pi-Atlas";
+    delete process.env.BRAVE_API_KEY;
+    delete process.env.EXA_API_KEY;
+    delete process.env.GITHUB_TOKEN;
+    mockedReadFileSync.mockImplementation((path) => {
+      if (path === ".env") return "BRAVE_API_KEY=local-brave";
+      if (path === "/Users/test/Pi-Atlas/.env") {
+        return "BRAVE_API_KEY=atlas-brave\nEXA_API_KEY=atlas-exa\nGITHUB_TOKEN=must-not-import";
+      }
+      throw new Error("ENOENT");
+    });
+
+    const config = loadConfig();
+
+    expect(config.braveApiKey).toBe("local-brave");
+    expect(config.exaApiKey).toBe("atlas-exa");
+    expect(process.env.GITHUB_TOKEN).toBeUndefined();
+  });
+
   it("includes optional keys from .env when present", () => {
     mockedReadFileSync.mockImplementation((path) => {
       if (path === ".env") {

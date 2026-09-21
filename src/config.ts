@@ -1,4 +1,6 @@
 import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join, resolve } from "node:path";
 import { ensureParentDir, getConfigPath } from "./infra/opencandle-paths.js";
 
 export interface SentimentConfig {
@@ -20,6 +22,7 @@ export interface Config {
   exaApiKey?: string;
   finnhubApiKey?: string;
   lseApiKey?: string;
+  blockchairApiKey?: string;
   sentiment?: SentimentConfig;
 }
 
@@ -57,7 +60,28 @@ export interface OpenCandleFileConfig {
   };
 }
 
-export function loadEnv(path = ".env"): void {
+const PI_ATLAS_SHARED_ENV_KEYS = new Set([
+  "OPENAI_API_KEY",
+  "ANTHROPIC_API_KEY",
+  "GEMINI_API_KEY",
+  "ALPHA_VANTAGE_API_KEY",
+  "FRED_API_KEY",
+  "BRAVE_API_KEY",
+  "EXA_API_KEY",
+  "FINNHUB_API_KEY",
+  "LSE_API_KEY",
+  "BLOCKCHAIR_API_KEY",
+]);
+
+export function resolvePiAtlasHome(env: NodeJS.ProcessEnv = process.env): string {
+  const configured = env.PI_ATLAS_HOME?.trim();
+  if (!configured) return join(homedir(), "Pi-Atlas");
+  if (configured === "~") return homedir();
+  if (configured.startsWith("~/")) return resolve(homedir(), configured.slice(2));
+  return resolve(configured);
+}
+
+export function loadEnv(path = ".env", allowedKeys?: ReadonlySet<string>): void {
   let content: string;
   try {
     content = readFileSync(path, "utf-8");
@@ -71,6 +95,7 @@ export function loadEnv(path = ".env"): void {
     if (eqIndex === -1) continue;
     const key = trimmed.slice(0, eqIndex).trim();
     const value = trimmed.slice(eqIndex + 1).trim();
+    if (allowedKeys && !allowedKeys.has(key)) continue;
     if (key && value && process.env[key] === undefined) {
       process.env[key] = value;
     }
@@ -118,6 +143,7 @@ function resolveConfig(fileConfig: OpenCandleFileConfig): Config {
     exaApiKey: process.env.EXA_API_KEY ?? fileConfig.providers?.exa?.apiKey,
     finnhubApiKey: process.env.FINNHUB_API_KEY ?? fileConfig.providers?.finnhub?.apiKey,
     lseApiKey: process.env.LSE_API_KEY ?? fileConfig.providers?.lse?.apiKey,
+    blockchairApiKey: process.env.BLOCKCHAIR_API_KEY,
     sentiment: {
       retentionDays: fileSentiment?.retentionDays ?? SENTIMENT_DEFAULTS.retentionDays,
       defaultSubreddits: fileSentiment?.defaultSubreddits ?? SENTIMENT_DEFAULTS.defaultSubreddits,
@@ -173,6 +199,7 @@ export function saveFileConfig(config: OpenCandleFileConfig, path = getConfigPat
 
 export function loadConfig(): Config {
   loadEnv();
+  loadEnv(join(resolvePiAtlasHome(), ".env"), PI_ATLAS_SHARED_ENV_KEYS);
   cachedConfig = resolveConfig(loadFileConfig());
 
   return cachedConfig;

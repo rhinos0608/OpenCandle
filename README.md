@@ -72,11 +72,11 @@ Run risk analysis on SPY
 
 ## Data Sources
 
-Quotes, history, screeners, options chains, crypto, SEC filings, macro series, event probabilities, and cross-source sentiment, from Yahoo Finance, TradingView, CoinGecko, SEC EDGAR, FRED, Polymarket, alternative.me, and more. Most sources work without API keys; Alpha Vantage, FRED, Brave, Exa, Finnhub, and London Strategic Edge unlock deeper coverage when configured, and Reddit/Twitter sentiment uses `rdt-cli` / `twitter-cli` with your normal browser sessions. Full coverage tables in [Data Sources](https://opencandle.app/docs/data-sources.html).
+Quotes, history, screeners, options chains, crypto, blockchain evidence, SEC filings, macro series, event probabilities, and cross-source sentiment, from Yahoo Finance, TradingView, CoinGecko, Blockchair, SEC EDGAR, FRED, Polymarket, alternative.me, and more. Local installs can also use Pi-Atlas/Northstar as the first `search_web` provider. Most sources work without API keys; Alpha Vantage, FRED, Brave, Exa, Finnhub, London Strategic Edge, and Blockchair unlock deeper or higher-limit coverage when configured, and Reddit/Twitter sentiment uses `rdt-cli` / `twitter-cli` with your normal browser sessions. Full coverage tables in [Data Sources](https://opencandle.app/docs/data-sources.html).
 
 ## Configuration
 
-Model access is configured through Pi on first run (`GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or Pi sign-in). Data-provider keys are optional and can be set in the environment, through `/connect`, through Settings, then Data providers, in the GUI, or in `~/.opencandle/config.json`; environment variables override the config file. See [Configuration](https://opencandle.app/docs/configuration.html) for the full key reference and advanced switches.
+Model access is configured through Pi on first run (`GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or Pi sign-in). Data-provider keys are optional and can be set in the environment, through `/connect`, through Settings, then Data providers, in the GUI, or in `~/.opencandle/config.json`; environment variables override the config file. This fork can additionally reuse an allowlisted subset of credentials from `~/Pi-Atlas/.env` (override the checkout with `PI_ATLAS_HOME`) without importing unrelated Pi-Atlas variables. See [Configuration](https://opencandle.app/docs/configuration.html) for the full key reference and advanced switches.
 
 ## How It Fits Together
 

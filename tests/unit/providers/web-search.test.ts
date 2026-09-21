@@ -16,6 +16,7 @@ import { SearchTimeType, search, searchNews } from "ddg-kit";
 import { getConfig } from "../../../src/config.js";
 import { httpGet } from "../../../src/infra/http-client.js";
 import { exaSearch } from "../../../src/providers/exa-search.js";
+import { isPiAtlasAvailable, piAtlasSearch } from "../../../src/providers/pi-atlas.js";
 import {
   braveSearch,
   ddgSearch,
@@ -35,9 +36,15 @@ vi.mock("../../../src/config.js", () => ({
 vi.mock("../../../src/providers/exa-search.js", () => ({
   exaSearch: vi.fn(),
 }));
+vi.mock("../../../src/providers/pi-atlas.js", () => ({
+  isPiAtlasAvailable: vi.fn(() => false),
+  piAtlasSearch: vi.fn(),
+}));
 const mockedHttpGet = vi.mocked(httpGet);
 const mockedGetConfig = vi.mocked(getConfig);
 const mockedExaSearch = vi.mocked(exaSearch);
+const mockedIsPiAtlasAvailable = vi.mocked(isPiAtlasAvailable);
+const mockedPiAtlasSearch = vi.mocked(piAtlasSearch);
 
 const mockedSearch = vi.mocked(search);
 const mockedSearchNews = vi.mocked(searchNews);
@@ -460,6 +467,7 @@ describe("searchWeb cascade", () => {
   beforeEach(() => {
     cache.clear();
     vi.clearAllMocks();
+    mockedIsPiAtlasAvailable.mockReturnValue(false);
     rateLimiter.configure("ddg", 100, 100);
     rateLimiter.configure("brave_search", 100, 100);
     rateLimiter.configure("exa", 100, 100);
@@ -467,6 +475,37 @@ describe("searchWeb cascade", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("uses Pi-Atlas Northstar first for local searches when available", async () => {
+    mockedIsPiAtlasAvailable.mockReturnValue(true);
+    mockedGetConfig.mockReturnValue({ braveApiKey: "my-key" } as any);
+    mockedPiAtlasSearch.mockResolvedValue({
+      query: "AAPL stock news",
+      results: [
+        {
+          title: "Northstar Result",
+          url: "https://example.com/northstar",
+          snippet: "northstar",
+          source: "example.com",
+          published: null,
+          category: "news",
+        },
+      ],
+      resultCount: 1,
+      fetchedAt: "2026-09-21T00:00:00Z",
+      provider: "pi-atlas",
+    });
+
+    const result = await searchWeb("AAPL", { category: "news", freshness: "day", limit: 10 });
+
+    expect(result.status).toBe("ok");
+    if (result.status === "ok") expect(result.data.provider).toBe("pi-atlas");
+    expect(mockedPiAtlasSearch).toHaveBeenCalledWith(
+      "AAPL stock news",
+      expect.objectContaining({ category: "news", freshness: "day", limit: 10 }),
+    );
+    expect(mockedExaSearch).not.toHaveBeenCalled();
   });
 
   it("uses Exa first when it succeeds (news)", async () => {
@@ -606,6 +645,41 @@ describe("searchWeb cascade", () => {
 
     expect(result.status).toBe("ok");
     expect(mockedExaSearch).toHaveBeenCalledWith("AAPL stock news", expect.any(Object));
+  });
+
+  it("provider override: pi-atlas skips the rest of the cascade", async () => {
+    mockedPiAtlasSearch.mockResolvedValue({
+      query: "AAPL stock news",
+      results: [
+        {
+          title: "Northstar Result",
+          url: "https://example.com/northstar",
+          snippet: "northstar",
+          source: "example.com",
+          published: null,
+          category: "news",
+        },
+      ],
+      resultCount: 1,
+      fetchedAt: "2026-09-21T00:00:00Z",
+      provider: "pi-atlas",
+    });
+
+    const result = await searchWeb("AAPL", {
+      category: "news",
+      freshness: "day",
+      limit: 10,
+      provider: "pi-atlas",
+    });
+
+    expect(result.status).toBe("ok");
+    if (result.status === "ok") expect(result.data.provider).toBe("pi-atlas");
+    expect(mockedPiAtlasSearch).toHaveBeenCalledWith(
+      "AAPL stock news",
+      expect.objectContaining({ provider: "pi-atlas" }),
+    );
+    expect(mockedExaSearch).not.toHaveBeenCalled();
+    expect(mockedSearchNews).not.toHaveBeenCalled();
   });
 
   it("provider override: ddg skips Exa entirely", async () => {

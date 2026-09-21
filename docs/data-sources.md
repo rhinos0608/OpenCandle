@@ -7,7 +7,7 @@ description: Review OpenCandle market, filings, options, macro, news, and sentim
 
 OpenCandle combines free public sources, optional keyed APIs, and local state. Tools gather the data; the model writes the analysis. Tools never invent numbers.
 
-In the web app at web.opencandle.app, most sources work the same. SEC EDGAR filings and X/Reddit sentiment need the local app, and Alpha Vantage, FRED, Finnhub, London Strategic Edge, and Brave need your own key there just like locally. See the [Web App Quickstart](./hosted-pwa.md).
+In the web app at web.opencandle.app, most sources work the same. SEC EDGAR filings, X/Reddit sentiment, Pi-Atlas/Northstar search, and Blockchair blockchain investigation need the local app, and Alpha Vantage, FRED, Finnhub, London Strategic Edge, and Brave need your own key there just like locally. See the [Web App Quickstart](./hosted-pwa.md).
 
 ## Provider Coverage
 
@@ -15,11 +15,12 @@ In the web app at web.opencandle.app, most sources work the same. SEC EDGAR fili
 | --- | --- | --- |
 | Market | `search_ticker`, `screen_stocks`, `get_stock_quote`, `get_stock_history`, `get_price_comparison` | Yahoo Finance; TradingView scanner for breadth screening and watchlist batch quotes; Alpha Vantage fallback for quote/history when configured; London Strategic Edge fallback for intraday and deep-range history (back to 2003) when configured |
 | Crypto | `get_crypto_price`, `get_crypto_history` | CoinGecko |
+| Blockchain | `investigate_blockchain` for address, transaction, and chain-stat evidence | Blockchair (local app only; optional API key) |
 | Options | `get_option_chain` with Greeks computed inside the result | Yahoo Finance plus local calculations |
 | Fundamentals | `get_company_overview`, `get_financials`, `get_earnings`, `compute_dcf`, `compare_companies` | London Strategic Edge (when configured), then Alpha Vantage for financial statements; `compute_dcf` additionally falls back to Yahoo Finance for statements and market cap; Alpha Vantage with Yahoo Finance fallbacks for overview, earnings, and comparisons |
 | Macro | `get_economic_data`, `get_event_probabilities`, `get_fear_greed` | FRED, [Polymarket](https://polymarket.com) Gamma API, alternative.me crypto Fear & Greed |
 | Technical | `get_technical_indicators`, `backtest_strategy` | Local calculations over market history |
-| Sentiment | `get_reddit_sentiment`, `get_twitter_sentiment`, `search_web`, `get_web_sentiment`, `get_sentiment_summary`, `get_sentiment_trend` | `rdt-cli` and `twitter-cli` using your normal browser sessions, Finnhub, DuckDuckGo, Brave, Exa |
+| Sentiment | `get_reddit_sentiment`, `get_twitter_sentiment`, `search_web`, `get_web_sentiment`, `get_sentiment_summary`, `get_sentiment_trend` | `rdt-cli` and `twitter-cli` using your normal browser sessions, Pi-Atlas/Northstar search when installed locally, Finnhub, DuckDuckGo, Brave, Exa |
 | Filings | `get_sec_filings` | SEC EDGAR |
 | Portfolio | `track_portfolio`, `analyze_risk`, `manage_watchlist`, `analyze_correlation`, `analyze_holdings_overlap`, `daily_watchlist_report`, `manage_alerts`, `manage_notifications` | Local state plus market providers |
 
@@ -38,6 +39,7 @@ Keyless by default:
 
 External local tools:
 
+- Pi-Atlas/Northstar can be used as the first local `search_web` provider when a Pi-Atlas checkout is available at `~/Pi-Atlas` or `$PI_ATLAS_HOME`. OpenCandle invokes its `pi-northstar.mjs` CLI with a deliberately minimal subprocess environment; Pi-Atlas loads its own configuration.
 - Reddit sentiment uses [`rdt-cli`](https://github.com/public-clis/rdt-cli) and the user's normal Reddit browser session. Install with `uv tool install rdt-cli`, then run `rdt login` if prompted. `opencandle doctor` checks install status; `opencandle doctor --sessions` or the GUI Diagnostics section under Settings explicitly checks browser-session readiness.
 - Twitter/X sentiment uses [`twitter-cli`](https://github.com/public-clis/twitter-cli) and the user's normal x.com browser session. Install with `uv tool install twitter-cli`. `opencandle doctor` checks install status; `opencandle doctor --sessions` or the same Diagnostics section explicitly checks browser-session readiness.
 
@@ -49,6 +51,7 @@ Optional keys (see [configuration.md](./configuration.md) for env var names and 
 - [Exa](https://exa.ai) web search runs keylessly through its MCP endpoint by default; a key upgrades it to the direct API for better quality and limits.
 - [Finnhub](https://finnhub.io) adds company news to sentiment summaries.
 - [London Strategic Edge](https://londonstrategicedge.com/databank) unlocks its free tier: financial-statement access (used before Alpha Vantage by `get_financials` and `compute_dcf`) and split-adjusted intraday plus deep-range daily candles back to 2003 as the last fallback behind Yahoo Finance and Alpha Vantage. The data is licensed per key; bring your own key. OpenCandle does not redistribute LSE data.
+- [Blockchair](https://blockchair.com/api) backs local read-only blockchain investigation for addresses, transactions, and chain statistics. Anonymous testing can work without a key, while `BLOCKCHAIR_API_KEY` is supported for keyed access; Bitcoin-family transaction lookups can include Privacy-o-meter evidence and Ethereum transaction lookups can include events.
 
 ## Caching and Degradation
 

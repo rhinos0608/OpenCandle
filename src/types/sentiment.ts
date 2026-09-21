@@ -103,7 +103,7 @@ export interface WebSearchEnvelope {
   results: WebSearchResult[];
   resultCount: number;
   fetchedAt: string;
-  provider: "ddg" | "brave" | "exa";
+  provider: "pi-atlas" | "ddg" | "brave" | "exa";
 }
 
 export interface RedditSentimentResult {

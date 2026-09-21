@@ -1,0 +1,13 @@
+{
+  "data": {
+    "blocks": 900000,
+    "transactions": 1200000000,
+    "mempool_transactions": 25000,
+    "market_price_usd": 100000
+  },
+  "context": {
+    "code": 200,
+    "state": 900000,
+    "request_cost": 1
+  }
+}
