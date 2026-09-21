@@ -1,4 +1,9 @@
 export { getEarnings, getFinancials, getOverview } from "./alpha-vantage.js";
+export {
+  getBlockchairAddress,
+  getBlockchairStats,
+  getBlockchairTransaction,
+} from "./blockchair.js";
 export { getCryptoHistory, getCryptoPrice } from "./coingecko.js";
 export { getFearGreedIndex } from "./fear-greed.js";
 export { getSeries } from "./fred.js";
@@ -12,6 +17,7 @@ export {
   type LseTimeframe,
   toLseTimeframe,
 } from "./lse.js";
+export { isPiAtlasAvailable, piAtlasSearch } from "./pi-atlas.js";
 export { getSubredditPosts, scoreSentiment } from "./reddit.js";
 export { type SECFiling, searchFilings } from "./sec-edgar.js";
 export { getQuotes, screenStocks } from "./tradingview.js";

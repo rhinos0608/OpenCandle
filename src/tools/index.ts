@@ -8,6 +8,7 @@ import { secFilingsTool } from "./fundamentals/sec-filings.js";
 import { eventProbabilitiesTool } from "./macro/event-probabilities.js";
 import { fearGreedTool } from "./macro/fear-greed.js";
 import { fredDataTool } from "./macro/fred-data.js";
+import { blockchainInvestigationTool } from "./market/blockchain-investigation.js";
 import { cryptoHistoryTool } from "./market/crypto-history.js";
 import { cryptoPriceTool } from "./market/crypto-price.js";
 import { priceComparisonTool } from "./market/price-comparison.js";
@@ -42,6 +43,7 @@ export { secFilingsTool } from "./fundamentals/sec-filings.js";
 export { eventProbabilitiesTool } from "./macro/event-probabilities.js";
 export { fearGreedTool } from "./macro/fear-greed.js";
 export { fredDataTool } from "./macro/fred-data.js";
+export { blockchainInvestigationTool } from "./market/blockchain-investigation.js";
 export { cryptoHistoryTool } from "./market/crypto-history.js";
 export { cryptoPriceTool } from "./market/crypto-price.js";
 export { priceComparisonTool } from "./market/price-comparison.js";
@@ -76,6 +78,7 @@ export function getAllTools(options: { askUserHandler?: AskUserHandler } = {}) {
     screenStocksTool,
     cryptoPriceTool,
     cryptoHistoryTool,
+    blockchainInvestigationTool,
     companyOverviewTool,
     financialsTool,
     earningsTool,

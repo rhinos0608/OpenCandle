@@ -1,0 +1,19 @@
+{
+  "data": {
+    "0xabc": {
+      "address": {
+        "type": "account",
+        "balance": "1234567890000000000",
+        "transaction_count": 2,
+        "call_count": 7
+      },
+      "transactions": ["0xtx1", "0xtx2"]
+    }
+  },
+  "context": {
+    "code": 200,
+    "results": 1,
+    "state": 21000000,
+    "request_cost": 1
+  }
+}

@@ -69,6 +69,8 @@ rateLimiter.configure("reddit_comments", 10, 0.5); // 10 req, ~30 req/min
 rateLimiter.configure("ddg", 3, 0.1); // 3 req, ~6 req/min
 rateLimiter.configure("brave_search", 5, 0.083); // 5 req, ~5 req/min
 rateLimiter.configure("exa", 5, 0.1); // 5 req, ~6 req/min
+rateLimiter.configure("pi_atlas", 2, 0.05); // Northstar may fan out; cap at ~3 searches/min
+rateLimiter.configure("blockchair", 2, 0.1); // conservative keyless/default pacing
 rateLimiter.configure("finnhub", 60, 1); // 60 req/min (free tier)
 rateLimiter.configure("ticker_line", 10, 5); // 10 request burst, 5 req/s sustained
 // TradingView scanner is undocumented; keep usage batch-first and paced.

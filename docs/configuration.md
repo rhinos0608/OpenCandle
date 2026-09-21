@@ -7,11 +7,12 @@ description: Environment variables, file config, state paths, and GUI runtime se
 
 This page applies to the local GUI and terminal; the web app keeps its settings in the browser (see [How the Web App Works](./how-the-web-app-works.md)).
 
-OpenCandle reads configuration from three places:
+OpenCandle reads configuration from four places:
 
-1. A `.env` file in the current working directory loaded at startup.
-2. Process environment variables.
-3. The OpenCandle JSON config file at `$OPENCANDLE_HOME/config.json`.
+1. Process environment variables.
+2. A `.env` file in the current working directory loaded at startup.
+3. An optional Pi-Atlas `.env` at `~/Pi-Atlas/.env` (or `$PI_ATLAS_HOME/.env`), from which OpenCandle imports only an allowlist of model, search, finance, and Blockchair credential names.
+4. The OpenCandle JSON config file at `$OPENCANDLE_HOME/config.json`.
 
 The default OpenCandle home is `~/.opencandle`. Set `OPENCANDLE_HOME` to move user state and file config elsewhere. Relative `OPENCANDLE_HOME` values are resolved to absolute paths from the current working directory.
 
@@ -23,10 +24,13 @@ Effective precedence:
 
 1. Already-exported process environment variables.
 2. Values from `.env` for keys not exported in the shell.
-3. `$OPENCANDLE_HOME/config.json`.
-4. Built-in defaults.
+3. Allowlisted values from `$PI_ATLAS_HOME/.env` for keys still unset.
+4. `$OPENCANDLE_HOME/config.json`.
+5. Built-in defaults.
 
-For provider API keys, env wins over JSON config. `OPENCANDLE_HOME`, `OPENCANDLE_GUI_HOST`, `OPENCANDLE_GUI_PORT`, `OPENCANDLE_GUI_ALLOW_REMOTE_PRIVATE_API`, `OPENCANDLE_NOTIFICATION_WEBHOOK_URL`, and developer diagnostic switches are env-only.
+The Pi-Atlas import is deliberately selective. It recognizes only `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `ALPHA_VANTAGE_API_KEY`, `FRED_API_KEY`, `BRAVE_API_KEY`, `EXA_API_KEY`, `FINNHUB_API_KEY`, `LSE_API_KEY`, and `BLOCKCHAIR_API_KEY`. Other variables in Pi-Atlas are not imported into OpenCandle.
+
+For provider API keys, env wins over JSON config. `OPENCANDLE_HOME`, `PI_ATLAS_HOME`, `BLOCKCHAIR_API_KEY`, `OPENCANDLE_GUI_HOST`, `OPENCANDLE_GUI_PORT`, `OPENCANDLE_GUI_ALLOW_REMOTE_PRIVATE_API`, `OPENCANDLE_NOTIFICATION_WEBHOOK_URL`, and developer diagnostic switches are env-only.
 
 ## Environment Variables
 
@@ -43,6 +47,8 @@ Most users only need model credentials, optional data-provider keys, the OpenCan
 | `EXA_API_KEY` | unset | Upgrades Exa search from its keyless MCP endpoint to the direct Exa API (better quality/limits). Overrides `providers.exa.apiKey`. |
 | `FINNHUB_API_KEY` | unset | Finnhub company news for sentiment summaries. Overrides `providers.finnhub.apiKey`. |
 | `LSE_API_KEY` | unset | London Strategic Edge free-tier key for financial statements and intraday/deep-range history fallbacks. Overrides `providers.lse.apiKey`. |
+| `BLOCKCHAIR_API_KEY` | unset | Optional Blockchair credential for `investigate_blockchain`; keyless testing may work, while a key avoids anonymous-access limits and provider blocks. |
+| `PI_ATLAS_HOME` | `~/Pi-Atlas` | Local Pi-Atlas checkout used for the Northstar `search_web` provider and selective `.env` credential reuse. |
 | `OPENCANDLE_HOME` | `~/.opencandle` | Directory for OpenCandle config and local state. |
 | `OPENCANDLE_GUI_HOST` | `127.0.0.1` | GUI bind host. Set `0.0.0.0` only when you intentionally want LAN/Tailscale access. |
 | `OPENCANDLE_GUI_ALLOW_REMOTE_PRIVATE_API` | unset | Allow the GUI's private market-state API to accept cookie-authenticated requests from non-loopback peers. Set `1` only together with an intentional `OPENCANDLE_GUI_HOST` network bind. |

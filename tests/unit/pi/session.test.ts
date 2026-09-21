@@ -75,29 +75,35 @@ describe("createOpenCandleSession", () => {
     process.env.GEMINI_API_KEY = "";
     process.env.OPENAI_API_KEY = "";
     process.env.ANTHROPIC_API_KEY = "";
+    const agentDir = mkdtempSync(join(tmpdir(), "opencandle-finance-only-agent-"));
 
-    const result = await createOpenCandleSession({
-      cwd: process.cwd(),
-      settingsManager: SettingsManager.inMemory(),
-      sessionManager: SessionManager.inMemory(),
-    });
+    try {
+      const result = await createOpenCandleSession({
+        cwd: process.cwd(),
+        agentDir,
+        settingsManager: SettingsManager.inMemory(),
+        sessionManager: SessionManager.inMemory(),
+      });
 
-    expect(result.session.getActiveToolNames()).not.toContain("read");
-    expect(result.session.getActiveToolNames()).not.toContain("bash");
-    expect(result.session.getActiveToolNames()).toContain("get_stock_quote");
-    expect(result.session.getActiveToolNames()).toContain("manage_watchlist");
-    expect(result.session.getActiveToolNames()).toContain("ask_user");
-    expect(result.session.getActiveToolNames()).not.toContain("trigger_twitter_login");
-    expect(result.session.getActiveToolNames()).toHaveLength(
-      getOpenCandleToolDefinitions().length + 1,
-    );
-    expect(result.coordinator).toBeDefined();
-    await expect(result.waitForSettled()).resolves.toBeUndefined();
-    if (result.modelFallbackMessage) {
-      expect(result.modelFallbackMessage).toContain("No models available");
+      expect(result.session.getActiveToolNames()).not.toContain("read");
+      expect(result.session.getActiveToolNames()).not.toContain("bash");
+      expect(result.session.getActiveToolNames()).toContain("get_stock_quote");
+      expect(result.session.getActiveToolNames()).toContain("manage_watchlist");
+      expect(result.session.getActiveToolNames()).toContain("ask_user");
+      expect(result.session.getActiveToolNames()).not.toContain("trigger_twitter_login");
+      expect(result.session.getActiveToolNames()).toHaveLength(
+        getOpenCandleToolDefinitions().length + 1,
+      );
+      expect(result.coordinator).toBeDefined();
+      await expect(result.waitForSettled()).resolves.toBeUndefined();
+      if (result.modelFallbackMessage) {
+        expect(result.modelFallbackMessage).toContain("No models available");
+      }
+
+      result.session.dispose();
+    } finally {
+      await rm(agentDir, { recursive: true, force: true });
     }
-
-    result.session.dispose();
   });
 
   it("surfaces Pi provider availability from environment variables without OpenCandle-specific auth wiring", async () => {
