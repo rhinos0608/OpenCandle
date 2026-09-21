@@ -63,10 +63,12 @@ export interface OpenCandleFileConfig {
   };
 }
 
+// Pi-Atlas loads its own repo-local .env for model/vision features. Do not
+// import LLM credentials into OpenCandle's process: Pi treats model-provider
+// environment variables as configured auth, which can make native providers
+// (for example google/) compete with authenticated extension providers such as
+// antigravity/ for the same model IDs.
 const PI_ATLAS_SHARED_ENV_KEYS = new Set([
-  "OPENAI_API_KEY",
-  "ANTHROPIC_API_KEY",
-  "GEMINI_API_KEY",
   "ALPHA_VANTAGE_API_KEY",
   "FRED_API_KEY",
   "BRAVE_API_KEY",

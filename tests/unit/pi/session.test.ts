@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { SessionManager, SettingsManager } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createOpenCandleSession } from "../../../src/pi/session.js";
+import { hydrateBoundExtensionModelProviders } from "../../../src/pi/session-core.js";
 import { getOpenCandleToolDefinitions } from "../../../src/pi/tool-adapter.js";
 import { createTestModelRuntime } from "../../helpers/pi-model-runtime.js";
 
@@ -20,6 +21,30 @@ describe("createOpenCandleSession", () => {
     process.env = { ...originalEnv };
     globalThis.fetch = originalFetch;
     vi.restoreAllMocks();
+  });
+
+  it("awaits cache hydration for providers registered during extension binding", async () => {
+    const refresh = vi.fn().mockResolvedValue({ aborted: false, errors: new Map() });
+    await hydrateBoundExtensionModelProviders({
+      getRegisteredProviderIds: () => ["antigravity", "opencode-zen"],
+      refresh,
+    } as any);
+
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(refresh).toHaveBeenCalledWith({
+      allowNetwork: false,
+      providers: ["antigravity", "opencode-zen"],
+    });
+  });
+
+  it("skips extension catalog hydration when no providers were registered", async () => {
+    const refresh = vi.fn();
+    await hydrateBoundExtensionModelProviders({
+      getRegisteredProviderIds: () => [],
+      refresh,
+    } as any);
+
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it("guards Pi API-key logins before creating the interactive session", async () => {

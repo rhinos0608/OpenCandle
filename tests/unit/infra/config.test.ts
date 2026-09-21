@@ -102,11 +102,21 @@ describe("loadConfig", () => {
     process.env.PI_ATLAS_HOME = "/Users/test/Pi-Atlas";
     delete process.env.BRAVE_API_KEY;
     delete process.env.EXA_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.GEMINI_API_KEY;
     delete process.env.GITHUB_TOKEN;
     mockedReadFileSync.mockImplementation((path) => {
       if (path === ".env") return "BRAVE_API_KEY=local-brave";
       if (path === "/Users/test/Pi-Atlas/.env") {
-        return "BRAVE_API_KEY=atlas-brave\nEXA_API_KEY=atlas-exa\nGITHUB_TOKEN=must-not-import";
+        return [
+          "BRAVE_API_KEY=atlas-brave",
+          "EXA_API_KEY=atlas-exa",
+          "OPENAI_API_KEY=must-not-import-model-key",
+          "ANTHROPIC_API_KEY=must-not-import-model-key",
+          "GEMINI_API_KEY=must-not-import-model-key",
+          "GITHUB_TOKEN=must-not-import",
+        ].join("\n");
       }
       throw new Error("ENOENT");
     });
@@ -115,6 +125,9 @@ describe("loadConfig", () => {
 
     expect(config.braveApiKey).toBe("local-brave");
     expect(config.exaApiKey).toBe("atlas-exa");
+    expect(process.env.OPENAI_API_KEY).toBeUndefined();
+    expect(process.env.ANTHROPIC_API_KEY).toBeUndefined();
+    expect(process.env.GEMINI_API_KEY).toBeUndefined();
     expect(process.env.GITHUB_TOKEN).toBeUndefined();
   });
 

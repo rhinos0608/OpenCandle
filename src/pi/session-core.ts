@@ -102,11 +102,16 @@ export async function createOpenCandleSessionCore(
   });
   guardModelRuntimeApiKeyLogins(result.session.modelRuntime);
 
-  await applySavedDefaultModel(result);
-
   if (options.bindExtensions !== false) {
     await result.session.bindExtensions({});
+    await hydrateBoundExtensionModelProviders(result.session.modelRuntime);
   }
+
+  // Extension providers are registered by bindExtensions(). Apply a saved
+  // extension-backed default only after their cached dynamic catalogs are
+  // restored, otherwise startup can silently fall back to an overlapping
+  // built-in provider before the extension refresh finishes.
+  await applySavedDefaultModel(result);
 
   return {
     ...result,
@@ -116,6 +121,19 @@ export async function createOpenCandleSessionCore(
       await result.session.waitForIdle();
     },
   };
+}
+
+export async function hydrateBoundExtensionModelProviders(
+  modelRuntime: Pick<ModelRuntime, "getRegisteredProviderIds" | "refresh">,
+): Promise<void> {
+  const providers = modelRuntime.getRegisteredProviderIds();
+  if (providers.length === 0) return;
+
+  // registerProvider() intentionally starts its cache refresh in the
+  // background. OpenCandle immediately exposes the model catalog to the GUI,
+  // so explicitly await a cache-only refresh here to make extension models
+  // deterministic without adding startup network traffic.
+  await modelRuntime.refresh({ allowNetwork: false, providers });
 }
 
 async function applySavedDefaultModel(result: CreateAgentSessionResult): Promise<void> {
