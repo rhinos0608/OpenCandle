@@ -6,12 +6,16 @@ import { fileURLToPath } from "node:url";
 import {
   createAgentSessionRuntime,
   createAgentSessionServices,
-  getAgentDir,
   ModelRuntime,
-  SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import { createOpenCandleSession } from "../../src/index.js";
 import { assertSupportedNodeVersion } from "../../src/infra/node-version.js";
+import {
+  createOpenCandlePiSettingsManager,
+  getOpenCandlePiAgentDir,
+  getOpenCandlePiSessionDir,
+  OPENCANDLE_PI_RESOURCE_POLICY,
+} from "../../src/pi/sandbox.js";
 import { createAskUserBridge } from "./ask-user-bridge.js";
 import {
   createLocalAutomationHeartbeat,
@@ -58,13 +62,14 @@ const localCoordinatorEndpoint = `http://${coordinatorEndpointHost(host)}:${port
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const webDist = resolveGuiWebDist(__dirname);
 
-const agentDir = getAgentDir();
+const agentDir = getOpenCandlePiAgentDir();
+const sandboxSessionDir = getOpenCandlePiSessionDir();
 const modelRuntime = await ModelRuntime.create({
   authPath: resolve(agentDir, "auth.json"),
   modelsPath: resolve(agentDir, "models.json"),
 });
-const settingsManager = SettingsManager.create(cwd, agentDir);
-const initialSessionManager = createInitialGuiSessionManager(cwd);
+const settingsManager = await createOpenCandlePiSettingsManager(cwd);
+const initialSessionManager = createInitialGuiSessionManager(cwd, sandboxSessionDir);
 let sessionManager = initialSessionManager;
 const sessionDir = sessionManager.getSessionDir();
 const initialWriterLockScope = writerLockScopeForSession(sessionManager);
@@ -87,6 +92,7 @@ const runtime = await createAgentSessionRuntime(
       agentDir: opts.agentDir,
       settingsManager,
       modelRuntime,
+      resourceLoaderOptions: OPENCANDLE_PI_RESOURCE_POLICY,
     });
     const result = await createOpenCandleSession({
       cwd: opts.cwd,

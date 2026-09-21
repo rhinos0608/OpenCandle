@@ -9,15 +9,18 @@ const command = frontDoorCommand(args);
 if (command) {
   console.log(renderFrontDoorCommand(command));
 } else if (args[0] === "doctor") {
-  const [{ loadEnv }, { handleDoctorCommand }, { getAgentDir }] = await Promise.all([
+  const [{ loadEnv }, { handleDoctorCommand }, sandbox] = await Promise.all([
     import("./config.js"),
     import("./doctor/cli-command.js"),
-    import("@earendil-works/pi-coding-agent"),
+    import("./pi/sandbox.js"),
   ]);
   loadEnv();
-  await handleDoctorCommand(args, process.cwd(), getAgentDir());
+  sandbox.configureOpenCandlePiSandboxEnvironment();
+  await handleDoctorCommand(args, process.cwd(), sandbox.getOpenCandlePiAgentDir());
 } else {
   assertSupportedNodeVersion();
+  const sandbox = await import("./pi/sandbox.js");
+  sandbox.configureOpenCandlePiSandboxEnvironment();
   await ensureOpenCandleNativeDependencies();
   await import("./cli-main.js");
 }

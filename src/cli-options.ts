@@ -29,10 +29,8 @@ export function renderFrontDoorCommand(command: FrontDoorCommand): string {
     "  monitor [--once]                  Run local alert/report automation",
     "  doctor [--json|--full|--sessions|--enable <provider>]",
     "                                    Check OpenCandle health",
-    "  install <source> [-l]             Install a package",
-    "  remove|uninstall <source> [-l]    Remove a package",
-    "  list                              List installed packages",
-    "  update [source]                   Update packages",
+    "  list                              Show managed Pi integrations",
+    "  update                            Rebuild the local OpenCandle checkout",
   ].join("\n");
 }
 

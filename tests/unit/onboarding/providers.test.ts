@@ -18,6 +18,7 @@ import {
   resolveHostedBrowserCapabilityReport,
   resolveProviderFromArgument,
 } from "../../../src/onboarding/providers.js";
+import { getAllTools } from "../../../src/tools/index.js";
 
 const ENV_KEYS = [
   "ALPHA_VANTAGE_API_KEY",
@@ -26,6 +27,7 @@ const ENV_KEYS = [
   "BRAVE_API_KEY",
   "EXA_API_KEY",
   "LSE_API_KEY",
+  "BLOCKCHAIR_API_KEY",
 ] as const;
 
 const originalEnv: Partial<Record<(typeof ENV_KEYS)[number], string | undefined>> = {};
@@ -36,6 +38,7 @@ const DEFAULT_EMPTY_CONFIG = {
   exaApiKey: undefined,
   finnhubApiKey: undefined,
   lseApiKey: undefined,
+  blockchairApiKey: undefined,
   sentiment: undefined,
 } satisfies Config;
 
@@ -115,6 +118,7 @@ describe("provider registry — shape", () => {
     expect(ids).toEqual(
       [
         "alpha_vantage",
+        "blockchair",
         "brave",
         "coingecko",
         "ddg",
@@ -133,6 +137,17 @@ describe("provider registry — shape", () => {
     );
   });
 
+  it("wires every provider to at least one registered agent tool", () => {
+    const toolNames = new Set(getAllTools().map((tool) => tool.name));
+    for (const provider of PROVIDERS) {
+      for (const toolName of provider.agentTools) {
+        expect(toolNames.has(toolName), `${provider.id} references missing tool ${toolName}`).toBe(
+          true,
+        );
+      }
+    }
+  });
+
   it("every descriptor has all required fields", () => {
     for (const p of PROVIDERS) {
       expect(["api-key", "external-tool", "public-http"]).toContain(p.kind);
@@ -146,6 +161,8 @@ describe("provider registry — shape", () => {
       expect(p.aliases.length).toBeGreaterThan(0);
       expect(Array.isArray(p.unlocks)).toBe(true);
       expect(p.unlocks.length).toBeGreaterThan(0);
+      expect(Array.isArray(p.agentTools)).toBe(true);
+      expect(p.agentTools.length).toBeGreaterThan(0);
       expect(p.snoozeDurationDays).toBeGreaterThan(0);
       expect(p.instructionsHint).toBeTruthy();
       // fallbackDescription may be null or string, never undefined
@@ -191,6 +208,7 @@ describe("provider registry — shape", () => {
     const soft = PROVIDERS.filter((p) => p.tier === "soft");
     expect(soft.map((p) => p.id).sort()).toEqual(
       [
+        "blockchair",
         "brave",
         "ddg",
         "exa",
@@ -316,6 +334,19 @@ describe("provider registry — lookup helpers", () => {
     });
   });
 
+  it("getProvider returns Blockchair as an optional API-key provider", () => {
+    const provider = getProvider("blockchair");
+
+    expect(provider).toMatchObject({
+      id: "blockchair",
+      kind: "api-key",
+      displayName: "Blockchair",
+      credentialOptional: true,
+      envVar: "BLOCKCHAIR_API_KEY",
+      agentTools: ["investigate_blockchain"],
+    });
+  });
+
   it("getProvider throws for an unknown id", () => {
     expect(() => getProvider("not_a_provider" as ProviderId)).toThrow(/not_a_provider/);
   });
@@ -339,6 +370,7 @@ describe("provider registry — lookup helpers", () => {
       .map((p) => p.id)
       .sort();
     expect(ids).toEqual([
+      "blockchair",
       "brave",
       "ddg",
       "exa",
@@ -381,6 +413,15 @@ describe("provider registry — credential helpers", () => {
 
     vi.mocked(configModule.getConfig).mockReturnValue(DEFAULT_EMPTY_CONFIG);
     expect(hasCredential("lse")).toBe(false);
+  });
+
+  it("hasCredential reflects the resolved Blockchair API key", () => {
+    vi.mocked(configModule.getConfig).mockReturnValue({
+      ...DEFAULT_EMPTY_CONFIG,
+      blockchairApiKey: "test-key-blockchair",
+    });
+
+    expect(hasCredential("blockchair")).toBe(true);
   });
 
   it("getCredentialSource returns 'env' when the process env var is set", () => {
@@ -475,7 +516,7 @@ describe("provider registry — import safety", () => {
     const loadFileConfigMock = configModule.loadFileConfig as ReturnType<typeof vi.fn>;
     // Freshly import the registry after the mock is in place.
     const providersModule = await import("../../../src/onboarding/providers.js");
-    expect(providersModule.PROVIDERS.length).toBe(15);
+    expect(providersModule.PROVIDERS.length).toBe(16);
     // Module evaluation must not trigger loadFileConfig.
     expect(loadFileConfigMock).not.toHaveBeenCalled();
     // Calling a credential helper SHOULD invoke loadFileConfig (lazy, on demand).

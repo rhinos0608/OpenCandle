@@ -62,7 +62,6 @@ function SidebarBody({
   onRenameSession,
   onDeleteSession,
   onNewSession,
-  onOpenHome,
   onClose,
   closeLabel = "Close sidebar",
   closeIcon: CloseIcon = X,
@@ -80,7 +79,7 @@ function SidebarBody({
         <button
           type="button"
           aria-label="Go to new chat"
-          onClick={onOpenHome}
+          onClick={onNewSession}
           className="flex min-h-10 shrink-0 items-center gap-2 rounded-md px-1 py-1 text-sm font-semibold tracking-tight text-foreground transition-[background-color,color,transform,scale] duration-150 ease-out hover:bg-background active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <OpenCandleLogo />

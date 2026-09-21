@@ -8,17 +8,21 @@ import { fileURLToPath } from "node:url";
 import {
   createAgentSessionRuntime,
   createAgentSessionServices,
-  DefaultPackageManager,
-  getAgentDir,
   InteractiveMode,
   initTheme,
   ModelRegistry,
   ModelRuntime,
   SessionManager,
-  SettingsManager,
 } from "@earendil-works/pi-coding-agent";
-import { loadEnv } from "./config.js";
+import { loadEnv, resolvePiAtlasHome } from "./config.js";
 import { handleDoctorCommand } from "./doctor/cli-command.js";
+import {
+  createOpenCandlePiSettingsManager,
+  getOpenCandlePiAgentDir,
+  getOpenCandlePiSessionDir,
+  OPENCANDLE_PI_PACKAGES,
+  OPENCANDLE_PI_RESOURCE_POLICY,
+} from "./pi/sandbox.js";
 import { createOpenCandleSession } from "./pi/session.js";
 import { continueOpenCandleSession } from "./pi/session-storage.js";
 import {
@@ -34,93 +38,44 @@ import { startTuiSessionCoordinatorServer } from "./pi/tui-session-coordinator.j
 const require = createRequire(import.meta.url);
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-async function handlePackageCommand(
-  args: string[],
-  cwd: string,
-  agentDir: string,
-): Promise<boolean> {
+async function handleManagedSandboxCommand(args: string[]): Promise<boolean> {
   const [command, ...rest] = args;
   if (!command || !["install", "remove", "uninstall", "list", "update"].includes(command)) {
     return false;
   }
 
-  const settingsManager = SettingsManager.create(cwd, agentDir);
-  const packageManager = new DefaultPackageManager({
-    cwd,
-    agentDir,
-    settingsManager,
-  });
-  packageManager.setProgressCallback((event) => {
-    if (event.type === "start" || event.type === "progress") {
-      process.stdout.write(`${event.message}\n`);
-    }
-  });
-
-  const source = rest.find((a) => !a.startsWith("-"));
-  const local = rest.includes("-l") || rest.includes("--local");
-
-  switch (command === "uninstall" ? "remove" : command) {
-    case "install": {
-      if (!source) {
-        console.error("Usage: opencandle install <source> [-l]");
-        process.exitCode = 1;
-        return true;
-      }
-      await packageManager.install(source, { local });
-      packageManager.addSourceToSettings(source, { local });
-      console.log(`Installed ${source}`);
-      return true;
-    }
-    case "remove": {
-      if (!source) {
-        console.error("Usage: opencandle remove <source> [-l]");
-        process.exitCode = 1;
-        return true;
-      }
-      await packageManager.remove(source, { local });
-      const removed = packageManager.removeSourceFromSettings(source, {
-        local,
-      });
-      if (!removed) {
-        console.error(`No matching package found for ${source}`);
-        process.exitCode = 1;
-      } else {
-        console.log(`Removed ${source}`);
-      }
-      return true;
-    }
-    case "list": {
-      const globalPkgs = settingsManager.getGlobalSettings().packages ?? [];
-      const projectPkgs = settingsManager.getProjectSettings().packages ?? [];
-      if (globalPkgs.length === 0 && projectPkgs.length === 0) {
-        console.log("No packages installed.");
-        return true;
-      }
-      if (globalPkgs.length > 0) {
-        console.log("User packages:");
-        for (const pkg of globalPkgs) {
-          const s = typeof pkg === "string" ? pkg : pkg.source;
-          const path = packageManager.getInstalledPath(s, "user");
-          console.log(`  ${s}${path ? `\n    ${path}` : ""}`);
-        }
-      }
-      if (projectPkgs.length > 0) {
-        console.log("Project packages:");
-        for (const pkg of projectPkgs) {
-          const s = typeof pkg === "string" ? pkg : pkg.source;
-          const path = packageManager.getInstalledPath(s, "project");
-          console.log(`  ${s}${path ? `\n    ${path}` : ""}`);
-        }
-      }
-      return true;
-    }
-    case "update": {
-      await packageManager.update(source);
-      console.log(source ? `Updated ${source}` : "All packages updated.");
-      return true;
-    }
+  if (command === "list") {
+    console.log("OpenCandle managed Pi sandbox:");
+    console.log(`  Pi-Atlas: ${resolvePiAtlasHome()}`);
+    for (const pkg of OPENCANDLE_PI_PACKAGES) console.log(`  ${pkg}`);
+    return true;
   }
-  return false;
+
+  if (command === "install" || command === "remove" || command === "uninstall") {
+    console.error(
+      "OpenCandle manages its isolated Pi integrations internally. " +
+        "Only Pi-Atlas, pi-provider-antigravity, and pi-opencode-zen are registered.",
+    );
+    process.exitCode = 1;
+    return true;
+  }
+
+  if (rest.length > 0) {
+    console.error("Usage: opencandle update");
+    process.exitCode = 1;
+    return true;
+  }
+
+  const child = spawn("npm", ["run", "build"], {
+    cwd: packageRoot,
+    env: process.env,
+    stdio: "inherit",
+  });
+  const exitCode = await new Promise<number>((resolveExit) => {
+    child.on("close", (code, signal) => resolveExit(signal ? 1 : (code ?? 0)));
+  });
+  process.exitCode = exitCode;
+  return true;
 }
 
 async function handleGuiCommand(args: string[], cwd: string): Promise<boolean> {
@@ -180,7 +135,8 @@ async function handleMonitorCommand(args: string[], cwd: string): Promise<boolea
 async function main(): Promise<void> {
   const rawArgs = process.argv.slice(2);
   const cwd = process.cwd();
-  const agentDir = getAgentDir();
+  const agentDir = getOpenCandlePiAgentDir();
+  const sessionDir = getOpenCandlePiSessionDir();
 
   loadEnv();
 
@@ -196,12 +152,12 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (await handlePackageCommand(rawArgs, cwd, agentDir)) {
+  if (await handleManagedSandboxCommand(rawArgs)) {
     return;
   }
 
   // Default: start the OpenCandle interactive agent
-  const settingsManager = SettingsManager.create(cwd, agentDir);
+  const settingsManager = await createOpenCandlePiSettingsManager(cwd);
   const modelRuntime = await ModelRuntime.create({
     authPath: resolve(agentDir, "auth.json"),
     modelsPath: resolve(agentDir, "models.json"),
@@ -211,7 +167,7 @@ async function main(): Promise<void> {
 
   initTheme(settingsManager.getTheme(), true);
 
-  const sessionManager = continueOpenCandleSession(cwd);
+  const sessionManager = continueOpenCandleSession(cwd, sessionDir);
   let activeSessionManager = sessionManager;
   const sessionWriterLockScope = writerLockScopeForSession(sessionManager);
   let runtime: Awaited<ReturnType<typeof createAgentSessionRuntime>> | undefined;
@@ -276,6 +232,7 @@ async function main(): Promise<void> {
           agentDir: opts.agentDir,
           settingsManager,
           modelRuntime,
+          resourceLoaderOptions: OPENCANDLE_PI_RESOURCE_POLICY,
         });
         const result = await createOpenCandleSession({
           cwd: opts.cwd,

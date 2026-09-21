@@ -171,19 +171,30 @@ export default function openCandleExtension(
   // `/connect <alias|id|category>` routes to a specific provider (or a
   // sub-picker for multi-provider categories like "search").
   pi.registerCommand("connect", {
-    description: "Connect an API-key data provider (Alpha Vantage, FRED, Finnhub, Brave, Exa)",
+    description:
+      "View and connect OpenCandle data providers (API keys, public APIs, external tools)",
     handler: async (args, ctx) => {
-      const { listApiKeyProviders, resolveProviderFromArgument, hasCredential, isApiKeyProvider } =
-        await import("../onboarding/providers.js");
+      const {
+        hasCredential,
+        isApiKeyProvider,
+        isExternalToolProvider,
+        isPublicHttpProvider,
+        listAllProviders,
+        resolveProviderFromArgument,
+      } = await import("../onboarding/providers.js");
 
-      const formatState = (id: ProviderId): string => {
-        const state = loadOnboardingState().providers[id];
+      const formatState = (provider: ReturnType<typeof getProvider>): string => {
+        if (isPublicHttpProvider(provider)) return "No key required";
+        if (isExternalToolProvider(provider)) return "External CLI";
+
+        const state = loadOnboardingState().providers[provider.id];
         if (state?.status === "completed") return "Configured";
         if (state?.status === "snoozed") {
           return `Snoozed until ${state.snoozeUntil.slice(0, 10)}`;
         }
         if (state?.status === "never_ask") return "Never-ask";
-        if (hasCredential(id)) return "Configured (via env)";
+        if (hasCredential(provider.id)) return "Configured";
+        if (provider.credentialOptional) return "Optional key not configured";
         return "Not configured";
       };
 
@@ -191,7 +202,7 @@ export default function openCandleExtension(
         providers: readonly ReturnType<typeof getProvider>[],
       ): Promise<ProviderId | undefined> => {
         const labels = providers.map(
-          (p) => `${p.displayName} — ${p.unlocks.slice(0, 2).join(", ")} [${formatState(p.id)}]`,
+          (p) => `${p.displayName} — ${p.unlocks.slice(0, 2).join(", ")} [${formatState(p)}]`,
         );
         const choice = await ctx.ui.select("Which provider would you like to connect?", labels);
         if (choice === undefined) return undefined;
@@ -204,36 +215,22 @@ export default function openCandleExtension(
 
       if (trimmed === "") {
         // Bare /connect → full picker.
-        targetId = await pickProvider(listApiKeyProviders());
+        targetId = await pickProvider(listAllProviders());
       } else {
         const resolved = resolveProviderFromArgument(trimmed);
         if (!resolved) {
-          const all = listApiKeyProviders()
-            .map((p) => `  ${p.displayName} (${p.aliases.join(", ")})`)
+          const all = listAllProviders()
+            .map((p) => `  ${p.displayName} (${p.aliases.join(", ")}) — ${formatState(p)}`)
             .join("\n");
           ctx.ui.notify(`Unknown provider: "${trimmed}". Available:\n${all}`, "warning");
           return;
         }
         if (Array.isArray(resolved)) {
-          // Multi-provider category — show a sub-picker.
-          const apiKeyProviders = resolved.filter(isApiKeyProvider);
-          if (apiKeyProviders.length === 0) {
-            ctx.ui.notify(
-              `"${trimmed}" does not use API-key setup. Run opencandle doctor for setup status.`,
-              "warning",
-            );
-            return;
-          }
-          targetId = await pickProvider(apiKeyProviders);
+          // Multi-provider category — show every provider in the category,
+          // including keyless and external-tool sources.
+          targetId = await pickProvider(resolved);
         } else {
           const descriptor = resolved as ReturnType<typeof getProvider>;
-          if (!isApiKeyProvider(descriptor)) {
-            ctx.ui.notify(
-              `${descriptor.displayName} does not use API-key setup. Run opencandle doctor for setup status.`,
-              "warning",
-            );
-            return;
-          }
           targetId = descriptor.id;
         }
       }
@@ -242,6 +239,25 @@ export default function openCandleExtension(
         ctx.ui.notify("Connect cancelled.", "info");
         return;
       }
+
+      const descriptor = getProvider(targetId);
+      if (isPublicHttpProvider(descriptor)) {
+        ctx.ui.notify(
+          `${descriptor.displayName} uses a public API and does not need an API key. ` +
+            `${descriptor.instructionsHint}. Agent tools: ${descriptor.agentTools.join(", ")}.`,
+          "info",
+        );
+        return;
+      }
+      if (isExternalToolProvider(descriptor)) {
+        ctx.ui.notify(
+          `${descriptor.displayName} is provided through an external CLI. ${descriptor.instructionsHint}. ` +
+            `Install with: ${descriptor.installCmd}. Agent tools: ${descriptor.agentTools.join(", ")}.`,
+          "info",
+        );
+        return;
+      }
+      if (!isApiKeyProvider(descriptor)) return;
 
       const result = await runProviderConnect(ctx, targetId);
       if (result.status === "connected") {

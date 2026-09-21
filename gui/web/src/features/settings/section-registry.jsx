@@ -18,7 +18,7 @@ const SECTION_DEFINITIONS = {
   model: {
     label: "Model",
     icon: Sparkles,
-    description: "Choose the model OpenCandle answers with and manage its API key.",
+    description: "Choose among models authenticated through OpenCandle's isolated Pi profile.",
     Component: ModelSection,
   },
   providers: {

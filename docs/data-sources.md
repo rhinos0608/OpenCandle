@@ -72,7 +72,7 @@ Kalshi is intentionally deferred. Its market-data API has attractive macro contr
 
 ## Local State
 
-OpenCandle user state defaults to `~/.opencandle/` for the local GUI and terminal; the web app keeps its state in your browser. Pi configuration is separate and stays in `.pi/` or `~/.pi/agent/`.
+OpenCandle user state defaults to `~/.opencandle/` for the local GUI and terminal; the web app keeps its state in your browser. The local OpenCandle runtime uses an isolated Pi profile under `~/.opencandle/pi-agent/` and isolated sessions under `~/.opencandle/pi-sessions/`; it does not import the user's normal `~/.pi/agent/` packages, prompts, skills, or sessions.
 
 ## Safety Boundary
 

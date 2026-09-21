@@ -99,19 +99,31 @@ export function ConnectModelPanel({
           </Select>
         </label>
       ) : null}
-      <ProviderKeyFlow
-        providers={providers}
-        hosted={hosted}
-        defaultStorageMode={modelSetup?.storageMode || "persistent"}
-        disabled={setupDisabled}
-        pendingProviderId={pendingProviderId}
-        selectedProviderId={selectedProviderId}
-        onSubmit={saveKey}
-        onSelectedProviderChange={(nextId) => {
-          setDismissedError(reportedError);
-          onSelectedProviderIdChange?.(nextId);
-        }}
-      />
+      {!hosted && providers.length === 0 ? (
+        <div
+          data-slot="provider-list-empty"
+          className="rounded-md border border-border bg-secondary/30 px-3 py-2 text-sm leading-relaxed text-muted-foreground"
+        >
+          Model credentials are managed by Pi in OpenCandle's isolated profile. Run
+          <code className="mx-1">opencandle</code>
+          and use <code>/setup</code> or <code>/login</code>, then Refresh.
+        </div>
+      ) : null}
+      {hosted || providers.length > 0 ? (
+        <ProviderKeyFlow
+          providers={providers}
+          hosted={hosted}
+          defaultStorageMode={modelSetup?.storageMode || "persistent"}
+          disabled={setupDisabled}
+          pendingProviderId={pendingProviderId}
+          selectedProviderId={selectedProviderId}
+          onSubmit={saveKey}
+          onSelectedProviderChange={(nextId) => {
+            setDismissedError(reportedError);
+            onSelectedProviderIdChange?.(nextId);
+          }}
+        />
+      ) : null}
       {/* Footnotes, kept below a hairline and at label weight so they never
           compete with the provider choice above them. */}
       <div className="flex flex-col items-start justify-between gap-2 border-t border-border pt-3 sm:flex-row sm:items-center sm:gap-4">
@@ -158,7 +170,7 @@ function ConnectModelHeading({ variant, role, requirement, hosted }) {
               ? "OpenCandle found your credentials. Choose a model to finish."
               : hosted
                 ? "Add an OpenAI, Anthropic, or Google key to run Pi in this browser. Provider requests pass through OpenCandle's audited relay, which processes keys in memory without storing them."
-                : "Pick a provider and paste its key. The key stays on this machine."}
+                : "Authenticate a model through Pi in the OpenCandle terminal with /setup or /login, then Refresh."}
         </p>
       </div>
     );
@@ -174,10 +186,10 @@ function ConnectModelHeading({ variant, role, requirement, hosted }) {
           : requirement === "ready"
             ? hosted
               ? "Add or replace the keys this browser keeps. Saved keys are never shown again."
-              : "Add or switch the chat model. Keys are saved in Pi's local auth store."
+              : "Choose among models authenticated in OpenCandle's isolated Pi profile. Use /setup or /login in the terminal to add credentials."
             : hosted
               ? "Paste an API key and choose how long this browser keeps it."
-              : "Paste an API key. Keys are saved in Pi's local auth store."}
+              : "Authenticate through Pi in the OpenCandle terminal with /setup or /login, then Refresh."}
       </p>
     </div>
   );

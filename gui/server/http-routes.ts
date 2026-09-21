@@ -865,7 +865,7 @@ async function streamAcceptedSseChatRun({
       const message =
         modelSetup.requirement === "select_model"
           ? "Choose an available model before chat can run. OpenCandle found configured credentials but no active model."
-          : "Connect an AI model before chat can run. Paste a Google Gemini, OpenAI, or Anthropic API key in the setup panel.";
+          : "Connect an AI model through Pi before chat can run. Start `opencandle`, use /setup or /login, then refresh the GUI.";
       runSessionManager.appendCustomMessageEntry("opencandle-model-setup", message, true, {
         source: "gui",
         requirement: modelSetup.requirement,

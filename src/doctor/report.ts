@@ -358,7 +358,8 @@ function buildModelCheck(modelSetup: DoctorModelSetupState | undefined): DoctorC
       status: "fail",
       capability: "core",
       summary: "No usable model credentials are configured",
-      remediation: "Run `/setup` in the CLI or paste a model API key in the GUI model setup panel.",
+      remediation:
+        "Run `opencandle`, then use `/setup` or Pi's `/login` to authenticate a model provider.",
       metadata: { requirement: state.requirement },
     };
   }

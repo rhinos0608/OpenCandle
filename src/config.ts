@@ -46,6 +46,9 @@ export interface OpenCandleFileConfig {
     lse?: {
       apiKey?: string;
     };
+    blockchair?: {
+      apiKey?: string;
+    };
   };
   sentiment?: {
     retentionDays?: number;
@@ -143,7 +146,7 @@ function resolveConfig(fileConfig: OpenCandleFileConfig): Config {
     exaApiKey: process.env.EXA_API_KEY ?? fileConfig.providers?.exa?.apiKey,
     finnhubApiKey: process.env.FINNHUB_API_KEY ?? fileConfig.providers?.finnhub?.apiKey,
     lseApiKey: process.env.LSE_API_KEY ?? fileConfig.providers?.lse?.apiKey,
-    blockchairApiKey: process.env.BLOCKCHAIR_API_KEY,
+    blockchairApiKey: process.env.BLOCKCHAIR_API_KEY ?? fileConfig.providers?.blockchair?.apiKey,
     sentiment: {
       retentionDays: fileSentiment?.retentionDays ?? SENTIMENT_DEFAULTS.retentionDays,
       defaultSubreddits: fileSentiment?.defaultSubreddits ?? SENTIMENT_DEFAULTS.defaultSubreddits,

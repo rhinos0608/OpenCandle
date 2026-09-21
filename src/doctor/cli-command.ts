@@ -1,10 +1,15 @@
-import { ModelRegistry, ModelRuntime, SettingsManager } from "@earendil-works/pi-coding-agent";
+import {
+  createAgentSessionServices,
+  ModelRegistry,
+  type SettingsManager,
+} from "@earendil-works/pi-coding-agent";
 import { getProvider, type ProviderId } from "../onboarding/providers.js";
 import {
   clearProviderOnboardingEntry,
   loadOnboardingState,
   saveOnboardingState,
 } from "../onboarding/state.js";
+import { createOpenCandlePiSettingsManager, OPENCANDLE_PI_RESOURCE_POLICY } from "../pi/sandbox.js";
 import { renderDoctorReport } from "./render.js";
 import { buildDoctorReport, type DoctorModelSetupState } from "./report.js";
 
@@ -35,12 +40,15 @@ export async function handleDoctorCommand(
     if (!json) console.log(`Re-enabled ${providerId}.`);
   }
 
-  const modelRuntime = await ModelRuntime.create({
-    authPath: `${agentDir}/auth.json`,
-    modelsPath: `${agentDir}/models.json`,
+  const settingsManager = await createOpenCandlePiSettingsManager(cwd);
+  const services = await createAgentSessionServices({
+    cwd,
+    agentDir,
+    settingsManager,
+    resourceLoaderOptions: OPENCANDLE_PI_RESOURCE_POLICY,
   });
-  const modelRegistry = new ModelRegistry(modelRuntime);
-  const settingsManager = SettingsManager.create(cwd, agentDir);
+  await services.modelRuntime.refresh({ allowNetwork: false });
+  const modelRegistry = new ModelRegistry(services.modelRuntime);
   const includeSessions = args.includes("--sessions");
   if (includeSessions) {
     console.error(

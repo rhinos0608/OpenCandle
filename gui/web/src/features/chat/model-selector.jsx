@@ -10,7 +10,7 @@ const PROVIDER_LABEL = {
   anthropic: "Anthropic",
 };
 
-export function ModelSelector({ modelSetup, send, disabled, onManageKeys }) {
+export function ModelSelector({ modelSetup, send, disabled, onManageKeys, popoverSide = "top" }) {
   const [open, setOpen] = useState(false);
   const availableModels = modelSetup?.availableModels || [];
   const currentModel = modelSetup?.currentModel || "";
@@ -43,7 +43,7 @@ export function ModelSelector({ modelSetup, send, disabled, onManageKeys }) {
             <span className="truncate max-w-[160px]">{triggerLabel}</span>
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="start" side="top" className="w-[280px] p-1">
+        <PopoverContent align="start" side={popoverSide} className="w-[280px] p-1">
           <div className="max-h-[280px] overflow-y-auto py-1">
             {availableModels.length > 0 ? (
               <>
@@ -83,7 +83,7 @@ export function ModelSelector({ modelSetup, send, disabled, onManageKeys }) {
               </>
             ) : (
               <div className="px-2 py-3 text-xs text-muted-foreground">
-                No models connected. Add an API key to get started.
+                No models connected. Authenticate through Pi with /setup or /login.
               </div>
             )}
           </div>

@@ -7,18 +7,8 @@ import {
   isApiKeyProvider,
   PROVIDERS,
 } from "../../src/onboarding/providers.js";
-import {
-  type ModelKeyProviderId,
-  validateModelKey,
-} from "../../src/onboarding/validate-model-key.js";
 import { validateCredential } from "../../src/onboarding/validation.js";
-import { previouslyValidatedModelKeyInteraction } from "../../src/pi/model-key-login-guard.js";
-import {
-  findPreferredModel as findPreferredModelFromCatalog,
-  type ModelSetupProvider,
-  modelSetupProviders,
-  sortModels,
-} from "../../src/pi/model-provider-catalog.js";
+import { type ModelSetupProvider, sortModels } from "../../src/pi/model-provider-catalog.js";
 
 export type ModelSetupRequirement = "ready" | "select_model" | "connect_auth";
 
@@ -104,7 +94,8 @@ export function buildModelSetupState(
       currentModel && registry.hasConfiguredAuth(currentModel)
         ? `${currentModel.provider}/${currentModel.id}`
         : undefined,
-    providers: modelSetupProviders,
+    // Local model credentials are managed by Pi in the isolated auth store.
+    providers: [],
     availableModels,
     ...(thinking
       ? {
@@ -113,13 +104,6 @@ export function buildModelSetupState(
         }
       : {}),
   };
-}
-
-export function findPreferredModel(
-  registry: Pick<ModelSetupRegistry, "getAvailable">,
-  provider: ModelSetupProvider,
-): Model<Api> | undefined {
-  return findPreferredModelFromCatalog(registry.getAvailable(), provider);
 }
 
 export function createModelSetupController({
@@ -146,54 +130,11 @@ export function createModelSetupController({
     );
   }
 
-  async function handleSaveModelApiKey(providerId: string, apiKey: string): Promise<void> {
+  async function handleSaveModelApiKey(_providerId: string, _apiKey: string): Promise<void> {
     ensureWriter();
-
-    const provider = modelSetupProviders.find((candidate) => candidate.id === providerId);
-    if (!provider) throw new Error(`Unknown model provider: ${providerId}`);
-
-    const trimmed = apiKey.trim();
-    if (!trimmed) throw new Error(`Paste a ${provider.label} API key first.`);
-
-    const validation = await validateModelKey(provider.id as ModelKeyProviderId, trimmed);
-    if (validation.status === "invalid") {
-      throw new Error(
-        `Key was rejected by ${validation.providerLabel}. The existing configuration was not changed.`,
-      );
-    }
-    if (validation.status !== "valid") {
-      throw new Error(
-        `Couldn't verify the ${validation.providerLabel} key (${validation.reason}). The existing configuration was not changed.`,
-      );
-    }
-
-    const session = getSession();
-    await session.modelRuntime.login(
-      provider.id,
-      "api_key",
-      previouslyValidatedModelKeyInteraction({
-        prompt: async () => trimmed,
-        notify: () => {},
-      }),
+    throw new Error(
+      "Model credentials are managed by Pi. Run `opencandle` and use /setup or /login, then refresh the GUI.",
     );
-    const modelRegistry = new ModelRegistry(session.modelRuntime);
-
-    const model = findPreferredModel(modelRegistry, provider);
-    if (!model) {
-      throw new Error(
-        `Saved the ${provider.label} key, but no ${provider.label} models are available yet.`,
-      );
-    }
-
-    await session.setModel(model);
-    await session.settingsManager.flush();
-    getSessionManager().appendCustomMessageEntry(
-      "opencandle-model-setup",
-      `Connected ${provider.label} and selected ${model.provider}/${model.id}.`,
-      true,
-      { source: "gui", provider: provider.id, model: `${model.provider}/${model.id}` },
-    );
-    broadcastState();
   }
 
   async function handleSaveProviderApiKey(providerId: string, apiKey: string): Promise<void> {
@@ -247,6 +188,9 @@ export function createModelSetupController({
     await session.modelRuntime.refresh();
     const model = session.modelRuntime.getModel(provider, modelId);
     if (!model) throw new Error(`Unknown model: ${provider}/${modelId}`);
+    if (!session.modelRuntime.hasConfiguredAuth(provider)) {
+      throw new Error(`Authenticate ${provider} through Pi before selecting this model.`);
+    }
     await session.setModel(model);
     await session.settingsManager.flush();
   }

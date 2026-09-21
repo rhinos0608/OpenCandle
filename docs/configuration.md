@@ -38,9 +38,9 @@ Most users only need model credentials, optional data-provider keys, the OpenCan
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `GEMINI_API_KEY` | unset | Google model credential used by Pi model setup and the GUI setup panel. |
-| `OPENAI_API_KEY` | unset | OpenAI model credential used by Pi model setup and the GUI setup panel. |
-| `ANTHROPIC_API_KEY` | unset | Anthropic model credential used by Pi model setup and the GUI setup panel. |
+| `GEMINI_API_KEY` | unset | Optional ambient Google credential resolved by Pi inside OpenCandle's isolated Pi runtime. |
+| `OPENAI_API_KEY` | unset | Optional ambient OpenAI credential resolved by Pi inside OpenCandle's isolated Pi runtime. |
+| `ANTHROPIC_API_KEY` | unset | Optional ambient Anthropic credential resolved by Pi inside OpenCandle's isolated Pi runtime. |
 | `ALPHA_VANTAGE_API_KEY` | unset | Fundamentals, earnings, financial statements, DCF, and comps. Overrides `providers.alphaVantage.apiKey`. |
 | `FRED_API_KEY` | unset | FRED macro series. Overrides `providers.fred.apiKey`. |
 | `BRAVE_API_KEY` | unset | Brave search in the web-search cascade. Overrides `providers.brave.apiKey`. |

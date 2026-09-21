@@ -10,7 +10,14 @@
 
 import { getConfig, loadFileConfig } from "../config.js";
 
-export type ApiKeyProviderId = "alpha_vantage" | "fred" | "finnhub" | "brave" | "exa" | "lse";
+export type ApiKeyProviderId =
+  | "alpha_vantage"
+  | "fred"
+  | "finnhub"
+  | "brave"
+  | "exa"
+  | "lse"
+  | "blockchair";
 export type ExternalToolProviderId = "twitter" | "reddit";
 export type PublicHttpProviderId =
   | "coingecko"
@@ -63,6 +70,8 @@ interface BaseProviderDescriptor {
   /** Lowercase friendly aliases accepted by `/connect` in addition to the id. */
   readonly aliases: readonly string[];
   readonly unlocks: readonly string[];
+  /** Agent-callable tools that expose this provider's data path. */
+  readonly agentTools: readonly string[];
   /**
    * Human copy describing the degraded experience when missing, or `null`
    * when there is no fallback (hard tier).
@@ -79,6 +88,8 @@ export interface ApiKeyProviderDescriptor extends BaseProviderDescriptor {
   readonly kind: "api-key";
   readonly signupUrl: string;
   readonly freeTier: boolean;
+  /** True when the provider also supports a useful keyless mode. */
+  readonly credentialOptional?: boolean;
   readonly envVar: string;
   /** Nested key path into `OpenCandleFileConfig` where the key is persisted. */
   readonly configPath: readonly string[];
@@ -126,6 +137,15 @@ export const PROVIDERS = [
       "DCF valuation",
       "earnings history",
     ],
+    agentTools: [
+      "get_stock_quote",
+      "get_stock_history",
+      "get_company_overview",
+      "get_financials",
+      "get_earnings",
+      "compare_companies",
+      "compute_dcf",
+    ],
     fallbackDescription: null,
     snoozeDurationDays: 7,
     instructionsHint: "Free, about 30 seconds, signup opens in your browser",
@@ -151,6 +171,7 @@ export const PROVIDERS = [
     envVar: "FRED_API_KEY",
     configPath: ["providers", "fred", "apiKey"],
     unlocks: ["interest rates", "inflation data", "yield curve", "economic indicators"],
+    agentTools: ["get_economic_data"],
     fallbackDescription: null,
     snoozeDurationDays: 7,
     instructionsHint: "Free, about 30 seconds, requires a St. Louis Fed account",
@@ -174,6 +195,7 @@ export const PROVIDERS = [
     // Finnhub is a soft enrichment source — sentiment-summary continues to work
     // with Twitter/Reddit/web search when Finnhub is missing. The fallback is
     // "the other sentiment sources still run".
+    agentTools: ["get_sentiment_summary", "get_sentiment_trend"],
     fallbackDescription:
       "Other sentiment sources (Reddit, Twitter, web search) continue to work without Finnhub",
     snoozeDurationDays: 7,
@@ -192,6 +214,7 @@ export const PROVIDERS = [
     aliases: ["ddg", "duckduckgo"],
     probeUrl: "https://duckduckgo.com/",
     unlocks: ["keyless web and news search fallback"],
+    agentTools: ["search_web"],
     fallbackDescription: "Web search remains available through configured Exa or Brave Search",
     snoozeDurationDays: 7,
     instructionsHint:
@@ -217,6 +240,7 @@ export const PROVIDERS = [
       "tier-2 web search with freshness control",
       "independent search index outside of DuckDuckGo",
     ],
+    agentTools: ["search_web"],
     fallbackDescription:
       "Web search continues to work via DuckDuckGo (free, no key needed, lower-quality freshness)",
     snoozeDurationDays: 7,
@@ -249,6 +273,7 @@ export const PROVIDERS = [
       "full article text and highlights",
       "higher freshness accuracy than DuckDuckGo",
     ],
+    agentTools: ["search_web"],
     fallbackDescription:
       "Exa search continues to work via the keyless Exa MCP endpoint, which has lower rate limits but similar quality",
     snoozeDurationDays: 7,
@@ -273,6 +298,7 @@ export const PROVIDERS = [
       "financial statements (income, balance sheet, and cash flow)",
       "deep split-adjusted intraday history back to 2003",
     ],
+    agentTools: ["get_stock_history", "get_financials"],
     fallbackDescription:
       "Market data continues through Yahoo Finance and Alpha Vantage when London Strategic Edge is unavailable",
     snoozeDurationDays: 7,
@@ -284,6 +310,34 @@ export const PROVIDERS = [
     },
   },
   {
+    id: "blockchair",
+    kind: "api-key",
+    displayName: "Blockchair",
+    category: "market",
+    tier: "soft",
+    aliases: ["blockchair", "blockchain", "on-chain", "onchain"],
+    signupUrl: "https://blockchair.com/api",
+    freeTier: true,
+    credentialOptional: true,
+    envVar: "BLOCKCHAIR_API_KEY",
+    configPath: ["providers", "blockchair", "apiKey"],
+    unlocks: [
+      "blockchain address investigation",
+      "transaction investigation",
+      "privacy heuristics and chain statistics",
+    ],
+    agentTools: ["investigate_blockchain"],
+    fallbackDescription:
+      "Blockchair can run in a keyless testing mode, but a key improves rate limits and reliability",
+    snoozeDurationDays: 7,
+    instructionsHint: "Optional API key; Blockchair also provides a limited keyless testing mode",
+    browserTransport: {
+      mode: "blocked",
+      reason:
+        "Blockchain investigation is currently exposed only in the local agent; hosted key handling is not enabled.",
+    },
+  },
+  {
     id: "coingecko",
     kind: "public-http",
     displayName: "CoinGecko",
@@ -292,6 +346,7 @@ export const PROVIDERS = [
     aliases: ["coingecko", "crypto-market-data"],
     probeUrl: "https://api.coingecko.com/api/v3/coins/bitcoin",
     unlocks: ["cryptocurrency prices", "cryptocurrency price history"],
+    agentTools: ["get_crypto_price", "get_crypto_history"],
     fallbackDescription: null,
     snoozeDurationDays: 7,
     instructionsHint: "No account needed; OpenCandle checks the public CoinGecko API",
@@ -315,6 +370,7 @@ export const PROVIDERS = [
     probeUrl: "https://www.sec.gov/files/company_tickers.json",
     probeHeaders: { "User-Agent": "OpenCandle/1.0 (financial analysis agent)" },
     unlocks: ["SEC filing search", "company submissions", "filing documents"],
+    agentTools: ["get_sec_filings"],
     fallbackDescription: null,
     snoozeDurationDays: 7,
     instructionsHint: "No account needed; OpenCandle checks the public SEC EDGAR endpoints",
@@ -332,6 +388,7 @@ export const PROVIDERS = [
     aliases: ["fear-greed", "fear-and-greed"],
     probeUrl: "https://api.alternative.me/fng/?limit=1",
     unlocks: ["crypto market fear and greed index"],
+    agentTools: ["get_fear_greed"],
     fallbackDescription: "Other market and sentiment tools continue when the index is unavailable",
     snoozeDurationDays: 7,
     instructionsHint: "No account needed; OpenCandle checks the public Alternative.me API",
@@ -349,6 +406,7 @@ export const PROVIDERS = [
     aliases: ["yahoo", "yahoo-finance", "market-data", "options"],
     probeUrl: "https://query1.finance.yahoo.com/v8/finance/chart/SPY?interval=1d&range=1d",
     unlocks: ["quotes", "historical prices", "option chains", "market data"],
+    agentTools: ["get_stock_quote", "get_stock_history", "get_option_chain"],
     fallbackDescription: null,
     snoozeDurationDays: 7,
     instructionsHint: "No account needed; OpenCandle checks public Yahoo Finance reachability",
@@ -367,6 +425,7 @@ export const PROVIDERS = [
     aliases: ["polymarket", "prediction-markets", "event-probabilities"],
     probeUrl: "https://gamma-api.polymarket.com/public-search?q=fed%20rate%20cut&limit=1",
     unlocks: ["market-implied event probabilities", "prediction-market resolution criteria"],
+    agentTools: ["get_event_probabilities"],
     fallbackDescription: null,
     snoozeDurationDays: 7,
     instructionsHint: "No account needed; OpenCandle checks public Polymarket Gamma reachability",
@@ -390,6 +449,7 @@ export const PROVIDERS = [
     aliases: ["tradingview", "tradingview-scanner", "screener"],
     probeUrl: "https://scanner.tradingview.com/america/scan2?label-product=screener-stock",
     unlocks: ["stock screens", "ticker search fallback", "watchlist quote fallback"],
+    agentTools: ["search_ticker", "screen_stocks", "manage_watchlist"],
     fallbackDescription:
       "Core market quote/history tools continue through Yahoo and Alpha Vantage when TradingView scanner is unavailable",
     snoozeDurationDays: 7,
@@ -413,6 +473,7 @@ export const PROVIDERS = [
     sessionProbeArgs: ["feed", "--max", "1", "--json"],
     supportedBrowsers: ["Chrome", "Arc", "Edge", "Firefox", "Brave"],
     unlocks: ["X/Twitter sentiment", "recent ticker mentions", "social engagement context"],
+    agentTools: ["get_twitter_sentiment", "get_sentiment_summary", "get_sentiment_trend"],
     fallbackDescription:
       "Sentiment summaries continue with Reddit, web search, and news when X is unavailable",
     snoozeDurationDays: 7,
@@ -435,6 +496,7 @@ export const PROVIDERS = [
     supportedBrowsers: ["Chrome", "Arc", "Edge", "Firefox", "Brave"],
     sessionProbeArgs: ["status", "--json"],
     unlocks: ["Reddit sentiment", "ticker discussion context", "retail investor discussion"],
+    agentTools: ["get_reddit_sentiment", "get_sentiment_summary", "get_sentiment_trend"],
     fallbackDescription:
       "Sentiment summaries continue with X/Twitter, web search, and news when Reddit is unavailable",
     snoozeDurationDays: 7,
@@ -573,6 +635,7 @@ const CONFIG_FIELD_BY_ID: Record<ApiKeyProviderId, keyof ReturnType<typeof getCo
   brave: "braveApiKey",
   exa: "exaApiKey",
   lse: "lseApiKey",
+  blockchair: "blockchairApiKey",
 };
 
 export function hasCredential(id: ProviderId): boolean {

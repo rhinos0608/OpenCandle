@@ -3,9 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildModelSetupState,
   createModelSetupController,
-  findPreferredModel,
   type ModelSetupRegistry,
-  modelSetupProviders,
 } from "../../../gui/server/model-setup.js";
 
 function model(provider: string, id: string): Model<Api> {
@@ -47,11 +45,7 @@ describe("GUI model setup", () => {
     // The placeholder model has no usable credentials, so it must not be
     // reported as the current model (the composer would render its raw id).
     expect(state.currentModel).toBeUndefined();
-    expect(state.providers.map((provider) => provider.envVar)).toEqual([
-      "GEMINI_API_KEY",
-      "OPENAI_API_KEY",
-      "ANTHROPIC_API_KEY",
-    ]);
+    expect(state.providers).toEqual([]);
   });
 
   it("asks the user to select a model when credentials already expose available models", () => {
@@ -138,126 +132,42 @@ describe("GUI model setup", () => {
     expect(flush).toHaveBeenCalledOnce();
   });
 
-  it("prefers the provider default model after saving an API key", () => {
-    const google = modelSetupProviders.find((provider) => provider.id === "google");
-    if (!google) throw new Error("Missing google provider setup");
-    const fallback = model("google", "gemini-2.0-flash");
-    const preferred = model("google", "gemini-2.5-flash");
-
-    const selected = findPreferredModel(registry([fallback, preferred]), google);
-
-    expect(selected).toBe(preferred);
-  });
-
-  it("saves a model API key, selects the preferred model, and records setup state", async () => {
-    const preferred = model("google", "gemini-2.5-flash");
-    const entries: unknown[] = [];
-    const selectedModels: Model<Api>[] = [];
-    const auth = new Map<string, unknown>();
-    const modelRuntime = {
-      login: async (
-        provider: string,
-        _type: string,
-        interaction: { prompt(input: unknown): Promise<string> },
-      ) => {
-        auth.set(provider, { type: "api_key", key: await interaction.prompt({}) });
-      },
-      getAvailableSnapshot: () => [preferred],
-      hasConfiguredAuth: () => true,
-      getModel: () => preferred,
-      refresh: async () => {},
-    };
-    const session = {
-      modelRuntime,
-      setModel: async (selected: Model<Api>) => {
-        selectedModels.push(selected);
-      },
-      settingsManager: {
-        flush: async () => {},
-      },
-    };
+  it("rejects direct model API-key writes in the local GUI", async () => {
     const controller = createModelSetupController({
       role: "writer",
-      getSession: () => session,
-      getSessionManager: () => ({
-        appendCustomMessageEntry: (...args: unknown[]) => {
-          entries.push(args);
-        },
-      }),
-      broadcastState: () => {},
-    });
-
-    await controller.handleSaveModelApiKey("google", " gem-key ");
-
-    expect(auth.get("google")).toEqual({ type: "api_key", key: "gem-key" });
-    expect(selectedModels).toEqual([preferred]);
-    expect(entries).toHaveLength(1);
-    expect(entries[0]).toEqual([
-      "opencandle-model-setup",
-      "Connected Google Gemini and selected google/gemini-2.5-flash.",
-      true,
-      { source: "gui", provider: "google", model: "google/gemini-2.5-flash" },
-    ]);
-  });
-
-  it("does not save a model key rejected by its provider", async () => {
-    globalThis.fetch = vi.fn(
-      async () => new Response("Unauthorized", { status: 401 }),
-    ) as unknown as typeof fetch;
-    const auth = new Map<string, unknown>();
-    const session = {
-      modelRuntime: {
-        login: async () => {},
-        getAvailableSnapshot: () => [model("openai", "gpt-5-mini")],
-        hasConfiguredAuth: () => true,
-        getModel: () => model("openai", "gpt-5-mini"),
-        refresh: async () => {},
+      getSession: () => {
+        throw new Error("direct model-key writes must not access the session");
       },
-      setModel: async () => {},
-      settingsManager: { flush: async () => {} },
-    };
-    const controller = createModelSetupController({
-      role: "writer",
-      getSession: () => session,
-      getSessionManager: () => ({ appendCustomMessageEntry: () => {} }),
-      broadcastState: () => {},
-    });
-
-    await expect(controller.handleSaveModelApiKey("openai", "bad-key")).rejects.toThrow(
-      "Key was rejected by OpenAI",
-    );
-    expect(auth).toHaveLength(0);
-  });
-
-  it("does not save a model key when its probe has a network failure", async () => {
-    globalThis.fetch = vi.fn(async () => {
-      throw new Error("offline");
-    }) as unknown as typeof fetch;
-    const anthropic = model("anthropic", "claude-haiku-4-5");
-    const login = vi.fn(async () => {});
-    const session = {
-      modelRuntime: {
-        login,
-        getAvailableSnapshot: () => [anthropic],
-        hasConfiguredAuth: () => true,
-        getModel: () => anthropic,
-        refresh: async () => {},
-      },
-      setModel: async () => {},
-      settingsManager: { flush: async () => {} },
-    };
-    const controller = createModelSetupController({
-      role: "writer",
-      getSession: () => session,
       getSessionManager: () => ({ appendCustomMessageEntry: vi.fn() }),
-      broadcastState: () => {},
+      broadcastState: vi.fn(),
     });
 
-    await expect(controller.handleSaveModelApiKey("anthropic", "network-key")).rejects.toThrow(
-      "Couldn't verify",
+    await expect(controller.handleSaveModelApiKey("openai", "some-key")).rejects.toThrow(
+      "Model credentials are managed by Pi",
     );
+  });
 
-    expect(login).not.toHaveBeenCalled();
+  it("rejects selection of a model whose Pi provider is not authenticated", async () => {
+    const candidate = model("openai", "gpt-5-mini");
+    const controller = createModelSetupController({
+      role: "writer",
+      getSession: () =>
+        ({
+          modelRuntime: {
+            refresh: vi.fn(async () => undefined),
+            getModel: vi.fn(() => candidate),
+            hasConfiguredAuth: vi.fn(() => false),
+          },
+          setModel: vi.fn(),
+          settingsManager: { flush: vi.fn(async () => undefined) },
+        }) as never,
+      getSessionManager: () => ({ appendCustomMessageEntry: vi.fn() }),
+      broadcastState: vi.fn(),
+    });
+
+    await expect(controller.handleSelectModel("openai", "gpt-5-mini")).rejects.toThrow(
+      "Authenticate openai through Pi",
+    );
   });
 
   it("does not advertise or record a provider key when its shared probe cannot verify it", async () => {

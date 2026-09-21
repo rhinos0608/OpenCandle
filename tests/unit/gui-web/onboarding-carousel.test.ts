@@ -527,7 +527,7 @@ describe("onboarding carousel", () => {
 
     expect(providerOptions()).toHaveLength(0);
     const empty = query('[data-slot="provider-list-empty"]');
-    expect(empty?.textContent).toContain("not reported which model providers are available yet");
+    expect(empty?.textContent).toContain("Model credentials are managed by Pi");
     expect(buttonNamed("Refresh")).toBeTruthy();
   });
 

@@ -24,7 +24,10 @@ vi.mock("@tanstack/react-router", async () => {
   };
 });
 
-const guiMocks = vi.hoisted(() => ({ events: [] as unknown[] }));
+const guiMocks = vi.hoisted(() => ({
+  events: [] as unknown[],
+  newSession: vi.fn(),
+}));
 
 vi.mock("../../../gui/web/src/hooks/useGuiConnection.jsx", () => ({
   useGuiConnection: () => ({
@@ -43,7 +46,7 @@ vi.mock("../../../gui/web/src/hooks/useGuiConnection.jsx", () => ({
     setToast: vi.fn(),
     send: vi.fn(),
     invokeTool: vi.fn(),
-    newSession: vi.fn(),
+    newSession: guiMocks.newSession,
     loadSession: vi.fn(),
     adoptSessionId: vi.fn(),
   }),
@@ -85,6 +88,8 @@ beforeEach(() => {
   routerMocks.navigate.mockClear();
   routerMocks.location = { pathname: "/", search: {} };
   guiMocks.events = [];
+  guiMocks.newSession.mockReset();
+  guiMocks.newSession.mockResolvedValue("fresh-session");
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -194,7 +199,28 @@ function renderApp() {
   });
 }
 
+describe("home-shell new chat affordance", () => {
+  it("starts a fresh session when the OpenCandle wordmark is clicked on home", () => {
+    renderApp();
+
+    click(buttonNamed("OpenCandle"));
+
+    expect(guiMocks.newSession).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("composer model chip key management", () => {
+  it("opens the hero model menu below the composer so compact laptop viewports keep its top visible", () => {
+    renderChatPanel();
+
+    const trigger = buttonNamed("gpt-5-mini");
+    click(trigger);
+    const menuId = trigger?.getAttribute("aria-controls");
+    const menu = menuId ? document.getElementById(menuId) : null;
+
+    expect(menu?.className).toContain("top-full");
+  });
+
   it("hands manage-keys to its host instead of opening a dialog", () => {
     const onManageKeys = vi.fn();
     act(() => {

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildComprehensiveAnalysisDefinition } from "../../../src/analysts/orchestrator.js";
 import { resetConfigCache } from "../../../src/config.js";
 import { initDatabase, initDefaultDatabase } from "../../../src/memory/sqlite.js";
+import { PROVIDERS } from "../../../src/onboarding/providers.js";
 import {
   loadOnboardingState,
   markProviderNeverAsk,
@@ -139,6 +140,26 @@ describe("opencandle extension", () => {
     expect(fake.tools.map((tool) => tool.name)).toContain("manage_notifications");
     expect(fake.commands.has("analyze")).toBe(true);
     expect(fake.commands.has("setup")).toBe(true);
+  });
+
+  it("shows every registered data provider in bare /connect", async () => {
+    const fake = createFakeApi();
+    openCandleExtension(fake.api);
+    const select = vi.fn().mockResolvedValue(undefined);
+    const notify = vi.fn();
+
+    await fake.commands.get("connect")!.handler("", {
+      isIdle: () => true,
+      ui: { select, notify },
+    } as any);
+
+    expect(select).toHaveBeenCalledTimes(1);
+    const labels = select.mock.calls[0]?.[1] as string[];
+    expect(labels).toHaveLength(PROVIDERS.length);
+    for (const provider of PROVIDERS) {
+      expect(labels.some((label) => label.startsWith(`${provider.displayName} —`))).toBe(true);
+    }
+    expect(labels.some((label) => label.startsWith("Blockchair —"))).toBe(true);
   });
 
   it("queues the comprehensive analysis prompt sequence for /analyze", async () => {

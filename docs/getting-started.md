@@ -18,7 +18,7 @@ OpenCandle is read-only research software. It does not place trades, route order
 To run locally:
 
 - [Node.js](https://nodejs.org) 22.19+ (22.x) or 24–26
-- One model provider: an OpenAI, Anthropic, or Google API key, or Pi sign-in
+- One model provider authenticated through Pi. Pi's native provider catalog is available, plus OpenCandle's managed Antigravity and OpenCode Zen provider extensions.
 - Optional market-data provider keys for expanded coverage
 
 The web app needs only a current Chromium-based desktop browser and a model API key.
@@ -35,11 +35,11 @@ opencandle           # terminal (TUI)
 
 You can also run without a global install with `npx opencandle@latest gui`, or from a source checkout with `npm install` followed by `npm run gui` (GUI) or `npm start` (terminal).
 
-The first launch needs network access; Pi downloads small helper binaries into `~/.pi/agent/bin`. OpenCandle stores local state in `~/.opencandle` on macOS/Linux and `%USERPROFILE%\.opencandle` on Windows unless `OPENCANDLE_HOME` is set.
+The first launch needs network access. OpenCandle keeps its Pi runtime isolated under `~/.opencandle/pi-agent` and sessions under `~/.opencandle/pi-sessions` on macOS/Linux (under `%USERPROFILE%\.opencandle` on Windows unless `OPENCANDLE_HOME` is set).
 
 ## Connect a Model
 
-On first run, the GUI opens model setup before chat: connect an OpenAI, Anthropic, or Google API key. Chat cannot start without a model. If you prefer Pi sign-in, run `/setup` in the terminal first, then refresh the GUI. The TUI supports both paths directly.
+On first run, authenticate a model through Pi in the terminal with `/setup` or `/login`. The local GUI reads the same isolated Pi auth/model state and can switch among authenticated models after Refresh; it does not maintain a separate model API-key store.
 
 Model credentials are stored by Pi. Market-data provider keys are separate, optional, and live in environment variables or `~/.opencandle/config.json`.
 
@@ -97,4 +97,4 @@ OpenCandle stores local state with [`better-sqlite3`](https://github.com/WiseLib
 npm uninstall -g opencandle
 ```
 
-OpenCandle keeps its state in `~/.opencandle`; Pi keeps model credentials and sessions in `~/.pi`. Delete those directories to remove all local data.
+OpenCandle keeps its state, isolated Pi credentials, and isolated Pi sessions under `~/.opencandle`. The user's normal `~/.pi` profile is separate and untouched.

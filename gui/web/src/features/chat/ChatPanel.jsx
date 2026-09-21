@@ -332,6 +332,7 @@ export function ChatPanel({
       onAddAttachment={addAttachment}
       onRemoveAttachment={removeAttachment}
       onManageModelKeys={onOpenModelSetup}
+      modelSelectorSide={isEmptyThread ? "bottom" : "top"}
     />
   );
 

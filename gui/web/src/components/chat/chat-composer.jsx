@@ -38,6 +38,7 @@ export function ChatComposer({
   onAddAttachment,
   onRemoveAttachment,
   onManageModelKeys,
+  modelSelectorSide = "top",
 }) {
   const imageCount = pendingAttachments.filter((attachment) => attachment.kind === "image").length;
   const textareaRef = useRef(null);
@@ -134,6 +135,7 @@ export function ChatComposer({
               send={send}
               disabled={disabled}
               onManageKeys={onManageModelKeys}
+              popoverSide={modelSelectorSide}
             />
           </div>
           {attachmentsEnabled ? (

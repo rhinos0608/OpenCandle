@@ -54,7 +54,7 @@ Local installs require [Node.js](https://nodejs.org/) 22.19+ or 24–26. macOS a
 npx opencandle
 ```
 
-On first run, OpenCandle walks you through model setup: use Pi sign-in when offered, or provide a model API key (in the GUI, use the API-key setup panel). Data-provider keys are separate and optional. For the five-minute path from install to a first answer, see [Getting Started](https://opencandle.app/docs/getting-started.html).
+On first run, OpenCandle creates an isolated Pi profile under `~/.opencandle/pi-agent` and walks you through Pi-managed model authentication. Pi's normal model/provider catalog remains available, with `pi-provider-antigravity` and `pi-opencode-zen` added for models Pi does not natively support. The local GUI uses models already authenticated through Pi; run `/setup` or `/login` in the terminal to add model credentials. Data-provider keys are separate and optional. For the five-minute path from install to a first answer, see [Getting Started](https://opencandle.app/docs/getting-started.html).
 
 Check your setup anytime with `npx opencandle doctor` (or Settings, then Diagnostics, in the GUI).
 
@@ -76,7 +76,7 @@ Quotes, history, screeners, options chains, crypto, blockchain evidence, SEC fil
 
 ## Configuration
 
-Model access is configured through Pi on first run (`GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or Pi sign-in). Data-provider keys are optional and can be set in the environment, through `/connect`, through Settings, then Data providers, in the GUI, or in `~/.opencandle/config.json`; environment variables override the config file. This fork can additionally reuse an allowlisted subset of credentials from `~/Pi-Atlas/.env` (override the checkout with `PI_ATLAS_HOME`) without importing unrelated Pi-Atlas variables. See [Configuration](https://opencandle.app/docs/configuration.html) for the full key reference and advanced switches.
+Model access is managed by Pi inside OpenCandle's isolated profile (`~/.opencandle/pi-agent`), using `/setup` or Pi's `/login`; the user's normal `~/.pi/agent` profile is not imported. Pi's native providers remain available and OpenCandle adds Antigravity and OpenCode Zen as managed provider extensions. Data-provider keys are optional and can be set in the environment, through `/connect`, through Settings, then Data providers, in the GUI, or in `~/.opencandle/config.json`; environment variables override the config file. This fork can additionally reuse an allowlisted subset of credentials from `~/Pi-Atlas/.env` (override the checkout with `PI_ATLAS_HOME`) without importing unrelated Pi-Atlas variables. See [Configuration](https://opencandle.app/docs/configuration.html) for the full key reference and advanced switches.
 
 ## How It Fits Together
 

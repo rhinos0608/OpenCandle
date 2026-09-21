@@ -16,7 +16,7 @@ It is read-only research software. It does not place trades, route orders, or pr
 3. Tools fetch quotes, filings, options, macro data, and sentiment. Gaps and stale data are surfaced.
 4. The model writes an answer that separates facts from judgment and names the risks.
 
-[Pi](https://github.com/earendil-works/pi) is the bundled agent runtime (model setup, sessions, terminal shell). OpenCandle adds the finance tools, workflows, providers, and local state on top. No separate Pi install needed.
+[Pi](https://github.com/earendil-works/pi) is the bundled agent runtime for models, authentication, sessions, and the terminal shell. OpenCandle runs Pi in an isolated profile under `~/.opencandle`, keeps Pi's normal model/provider catalog, and loads only its managed extra integrations: Pi-Atlas, Antigravity, and OpenCode Zen. No separate Pi install is needed.
 
 For a quick feel of the product, watch the [launch video](https://github.com/user-attachments/assets/334956b1-18b4-4d6f-92b5-3f739824cd29).
 

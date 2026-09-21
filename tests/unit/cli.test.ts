@@ -80,15 +80,25 @@ vi.mock("@earendil-works/pi-coding-agent", () => {
     },
     SettingsManager: {
       create: vi.fn(() => ({
+        flush: vi.fn().mockResolvedValue(undefined),
         getDefaultModel: vi.fn(),
         getDefaultProvider: vi.fn(),
         getGlobalSettings: vi.fn(() => ({ packages: [] })),
         getProjectSettings: vi.fn(() => ({ packages: [] })),
         getTheme: vi.fn(),
+        setEnableInstallTelemetry: vi.fn(),
+        setExtensionPaths: vi.fn(),
+        setPackages: vi.fn(),
+        setPromptTemplatePaths: vi.fn(),
+        setQuietStartup: vi.fn(),
+        setSkillPaths: vi.fn(),
+        setThemePaths: vi.fn(),
       })),
     },
     createAgentSessionRuntime: piMocks.createAgentSessionRuntime,
-    createAgentSessionServices: vi.fn(),
+    createAgentSessionServices: vi.fn(async () => ({
+      modelRuntime: { refresh: vi.fn().mockResolvedValue(undefined) },
+    })),
     getAgentDir: vi.fn(() => "/tmp/opencandle-test-agent"),
     initTheme: vi.fn(),
   };
@@ -96,6 +106,7 @@ vi.mock("@earendil-works/pi-coding-agent", () => {
 
 vi.mock("../../src/config.js", () => ({
   loadEnv: vi.fn(),
+  resolvePiAtlasHome: vi.fn(() => "/Users/test/Pi-Atlas"),
 }));
 
 vi.mock("../../src/infra/native-dependencies.js", () => ({
@@ -128,6 +139,21 @@ vi.mock("../../src/doctor/render.js", () => ({
   renderDoctorReport: piMocks.renderDoctorReport.mockReturnValue("rendered doctor report"),
 }));
 
+vi.mock("../../src/pi/sandbox.js", () => ({
+  configureOpenCandlePiSandboxEnvironment: vi.fn(() => ({
+    agentDir: "/tmp/opencandle-test-agent",
+    sessionDir: "/tmp/opencandle-test-sessions",
+  })),
+  createOpenCandlePiSettingsManager: vi.fn(async () => ({
+    getDefaultModel: vi.fn(),
+    getDefaultProvider: vi.fn(),
+    getTheme: vi.fn(),
+  })),
+  getOpenCandlePiAgentDir: vi.fn(() => "/tmp/opencandle-test-agent"),
+  getOpenCandlePiSessionDir: vi.fn(() => "/tmp/opencandle-test-sessions"),
+  OPENCANDLE_PI_PACKAGES: ["npm:pi-provider-antigravity", "npm:pi-opencode-zen"],
+  OPENCANDLE_PI_RESOURCE_POLICY: {},
+}));
 vi.mock("../../src/pi/session.js", () => ({
   createOpenCandleSession: piMocks.createOpenCandleSession,
 }));
@@ -194,17 +220,27 @@ describe("opencandle package commands", () => {
     process.exitCode = originalExitCode;
   });
 
-  it.each(["--local", "-l"])("passes %s through to package installs", async (localFlag) => {
-    await runCli(["install", "./fixture-package", localFlag]);
+  it("rejects arbitrary Pi package installs in the managed sandbox", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    expect(piMocks.install).toHaveBeenCalledWith("./fixture-package", {
-      local: true,
-    });
-    expect(piMocks.addSourceToSettings).toHaveBeenCalledWith("./fixture-package", {
-      local: true,
-    });
-    expect(piMocks.assertSupportedNodeVersion).toHaveBeenCalled();
-    expect(piMocks.ensureOpenCandleNativeDependencies).toHaveBeenCalled();
+    await runCli(["install", "./fixture-package"]);
+
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining("Only Pi-Atlas, pi-provider-antigravity, and pi-opencode-zen"),
+    );
+    expect(piMocks.install).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
+  });
+
+  it("rebuilds the checkout for opencandle update", async () => {
+    await runCli(["update"]);
+
+    expect(piMocks.spawn).toHaveBeenCalledWith(
+      "npm",
+      ["run", "build"],
+      expect.objectContaining({ stdio: "inherit" }),
+    );
+    expect(process.exitCode).toBe(0);
   });
 
   it("spawns the compiled foreground local automation monitor when built", async () => {

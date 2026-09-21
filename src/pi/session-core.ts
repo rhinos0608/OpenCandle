@@ -4,7 +4,6 @@ import {
   type CreateAgentSessionResult,
   createAgentSession,
   DefaultResourceLoader,
-  getAgentDir,
   type ModelRuntime,
   type SessionManager,
   type SettingsManager,
@@ -20,6 +19,7 @@ import { guardModelRuntimeApiKeyLogins } from "./model-key-login-guard.js";
 import openCandleExtensionCore, {
   type OpenCandleExtensionOptions,
 } from "./opencandle-extension-core.js";
+import { getOpenCandlePiAgentDir, OPENCANDLE_PI_RESOURCE_POLICY } from "./sandbox.js";
 
 export interface CreateOpenCandleSessionOptions {
   cwd?: string;
@@ -54,7 +54,7 @@ export async function createOpenCandleSessionCore(
   loadEnv();
 
   const cwd = options.cwd ?? process.cwd();
-  const agentDir = options.agentDir ?? getAgentDir();
+  const agentDir = options.agentDir ?? getOpenCandlePiAgentDir();
   const useInlineExtension = options.useInlineExtension ?? true;
   if (options.modelRuntime) guardModelRuntimeApiKeyLogins(options.modelRuntime);
   let coordinator: SessionCoordinator | undefined;
@@ -63,6 +63,7 @@ export async function createOpenCandleSessionCore(
         cwd,
         agentDir,
         settingsManager: options.settingsManager,
+        ...OPENCANDLE_PI_RESOURCE_POLICY,
         extensionFactories: [
           (pi) =>
             openCandleExtensionCore(pi, {

@@ -34,6 +34,7 @@ async function validateWithFetch(
   url: string,
   init: RequestInit,
   classifyBody?: BodyClassifier,
+  invalidStatuses: readonly number[] = [400, 401, 403],
 ): Promise<ValidationResult> {
   try {
     const response = await fetch(url, {
@@ -41,14 +42,10 @@ async function validateWithFetch(
       signal: AbortSignal.timeout(VALIDATION_TIMEOUT_MS),
     });
 
-    // Hard auth failures — the key is definitively bad.
-    if (response.status === 401 || response.status === 403) {
+    // Hard auth failures — the key is definitively bad. Providers can
+    // extend this set for provider-specific auth/quota status codes.
+    if (invalidStatuses.includes(response.status)) {
       return { status: "invalid", httpStatus: response.status };
-    }
-
-    // FRED returns 400 with an `error_message` for bad keys.
-    if (response.status === 400) {
-      return { status: "invalid", httpStatus: 400 };
     }
 
     // 5xx and other non-2xx — treat as transient. The caller keeps the prior
@@ -158,6 +155,14 @@ export async function validateCredential(
             Accept: "application/json",
           },
         },
+      );
+
+    case "blockchair":
+      return validateWithFetch(
+        `https://api.blockchair.com/bitcoin/stats?key=${encodeURIComponent(key)}`,
+        { method: "GET", headers: { Accept: "application/json" } },
+        undefined,
+        [400, 401, 403, 430],
       );
   }
 }

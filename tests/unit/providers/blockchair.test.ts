@@ -10,6 +10,10 @@ import bitcoinStats from "../../fixtures/blockchair/bitcoin-stats.json";
 import bitcoinTransaction from "../../fixtures/blockchair/bitcoin-transaction.json";
 import ethereumAddress from "../../fixtures/blockchair/ethereum-address.json";
 
+vi.mock("../../../src/config.js", () => ({
+  getConfig: vi.fn(() => ({ blockchairApiKey: undefined })),
+}));
+
 vi.mock("../../../src/infra/http-client.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../src/infra/http-client.js")>();
   return { ...actual, httpGet: vi.fn() };

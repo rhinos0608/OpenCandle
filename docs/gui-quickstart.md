@@ -11,7 +11,7 @@ This page covers the local GUI: the local OpenCandle app in your browser at `127
 
 1. Start the local GUI with `opencandle gui` from an installed package, or `npm install` followed by `npm run gui` from a source checkout.
 1. Open `http://127.0.0.1:14567`.
-1. If the model setup panel appears, connect a model API key first. Chat cannot run without model access. If you want Pi sign-in instead of an API key, complete terminal `/setup` first and then refresh the GUI.
+1. If the model setup panel appears, authenticate through Pi in the OpenCandle terminal with `/setup` or `/login`, then refresh the GUI. The local GUI does not maintain a separate model API-key path.
 1. Start with a prompt that needs no API keys, such as `What is AAPL trading at?` or one of the dashboard suggestion cards. When you want deep research, run `/analyze NVDA`; the multi-analyst debate takes a few minutes.
 1. Open the catalog with `⌘K` on macOS, `Ctrl+K` on Windows/Linux, or the top-bar catalog button. Use Tools to run a single tool and Workflows to submit a workflow prompt.
 1. Open Settings from the sidebar for model keys, data providers, saved preferences, notifications and automation, diagnostics, and data and privacy.
