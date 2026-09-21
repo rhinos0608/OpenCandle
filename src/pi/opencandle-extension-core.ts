@@ -54,6 +54,7 @@ import {
   buildOptionsScreenerWorkflowDefinition,
   buildPortfolioWorkflowDefinition,
 } from "../workflows/index.js";
+import { preferAtlasWebSearchToolNames } from "./tool-preferences.js";
 
 export interface OpenCandleExtensionOptions {
   modelRuntime?: ModelRuntime;
@@ -271,6 +272,7 @@ export default function openCandleExtension(
 
   // Session start
   pi.on("session_start", async (_event, ctx) => {
+    applyPreferredWebSearchTools();
     coordinator.initSession(ctx.sessionManager.getSessionId());
     sessionPromptedSet.clear();
     hardPromptFiredInWorkflow = false;
@@ -792,7 +794,7 @@ export default function openCandleExtension(
       return false;
     }
 
-    const availableToolNames = safeGetAllToolNames();
+    const availableToolNames = safeGetAvailableToolNames();
     const memory = coordinator.retrieveMemoryForRoute(
       output.routeKind,
       output.workflow,
@@ -1163,11 +1165,26 @@ export default function openCandleExtension(
     return merged;
   }
 
-  function safeGetAllToolNames(): string[] {
+  function applyPreferredWebSearchTools(): void {
+    const currentActiveToolNames = pi.getActiveTools();
+    const activeToolNames = preferAtlasWebSearchToolNames(
+      currentActiveToolNames,
+      pi.getAllTools().map((tool) => tool.name),
+    );
+    if (activeToolNames.length !== currentActiveToolNames.length) {
+      pi.setActiveTools(activeToolNames);
+    }
+  }
+
+  function safeGetAvailableToolNames(): string[] {
     try {
-      return pi.getAllTools().map((tool) => tool.name);
+      return pi.getActiveTools();
     } catch {
-      return [];
+      try {
+        return pi.getAllTools().map((tool) => tool.name);
+      } catch {
+        return [];
+      }
     }
   }
 
@@ -1186,6 +1203,7 @@ export default function openCandleExtension(
   // System prompt assembly — delegate to coordinator. When a fallback context
   // is pending (router-mode fallback turns), inject it into the prompt.
   pi.on("before_agent_start", async (event) => {
+    applyPreferredWebSearchTools();
     const fallbackContext = coordinator.consumePendingFallbackContext() ?? undefined;
     const resolvedTurnContext = coordinator.consumePendingResolvedTurnContext() ?? undefined;
     return {
@@ -1194,6 +1212,7 @@ export default function openCandleExtension(
         coordinator.getActiveWorkflowType(),
         fallbackContext,
         resolvedTurnContext,
+        safeGetAvailableToolNames(),
       ),
     };
   });

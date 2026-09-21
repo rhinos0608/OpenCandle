@@ -24,6 +24,8 @@ export interface PromptContextOptions {
   memoryContext?: string;
   providerStatus?: string;
   addonToolDescriptions?: string[];
+  /** Active Pi tool names for runtime-specific prompt vocabulary. */
+  activeToolNames?: readonly string[];
   /**
    * Optional fallback-route context (router-mode only). When present, a
    * fallback playbook and an Assumptions block are slotted into
@@ -104,19 +106,34 @@ export class PromptContextBuilder {
    * Convenience method: populate all sections from standard sources.
    */
   populateFromOptions(options: PromptContextOptions): this {
-    this.setSection("base-role", BASE_ROLE);
-    this.setSection("safety-rules", SAFETY_RULES);
+    const preferredWebSearchTool = resolvePreferredWebSearchTool(
+      options.resolvedTurnContext?.activeToolNames ?? options.activeToolNames,
+    );
+    this.setSection("base-role", rewriteWebSearchToolReferences(BASE_ROLE, preferredWebSearchTool));
+    this.setSection(
+      "safety-rules",
+      rewriteWebSearchToolReferences(SAFETY_RULES, preferredWebSearchTool),
+    );
     this.setSection(
       "tool-catalog",
       options.resolvedTurnContext && options.resolvedTurnContext.activeToolNames.length === 0
         ? "## Available Tools\nNo finance tools are needed for this turn. Answer from general finance knowledge without naming OpenCandle tool functions."
-        : buildToolCatalog(options.addonToolDescriptions),
+        : buildToolCatalog(options.addonToolDescriptions, preferredWebSearchTool),
     );
     if (options.workflowInstructions) {
-      this.setSection("workflow-instructions", options.workflowInstructions);
+      this.setSection(
+        "workflow-instructions",
+        rewriteWebSearchToolReferences(options.workflowInstructions, preferredWebSearchTool),
+      );
     } else if (options.resolvedTurnContext) {
-      const routePlaybook = buildRoutePlaybook(options.resolvedTurnContext);
-      const policyCard = renderPolicyCardForPlanning(options.resolvedTurnContext.planning);
+      const routePlaybook = rewriteWebSearchToolReferences(
+        buildRoutePlaybook(options.resolvedTurnContext),
+        preferredWebSearchTool,
+      );
+      const policyCard = rewriteWebSearchToolReferences(
+        renderPolicyCardForPlanning(options.resolvedTurnContext.planning),
+        preferredWebSearchTool,
+      );
       this.setSection(
         "workflow-instructions",
         policyCard ? `${policyCard}\n\n${routePlaybook}` : routePlaybook,
@@ -296,11 +313,45 @@ const TOOL_CATALOG = `## Available Tools
 - **Portfolio**: track_portfolio, analyze_risk, manage_watchlist, analyze_correlation, analyze_holdings_overlap, manage_alerts, daily_watchlist_report, manage_notifications — position tracking, P&L, Sharpe ratio, VaR, watchlist tracking, durable local alerts, daily watchlist reports, notification history, correlation matrix, and ETF/fund holdings overlap
 - **User Interaction**: ask_user — ask the user a clarification question when their request is ambiguous or missing key details`;
 
-function buildToolCatalog(addonDescriptions?: string[]): string {
+function buildToolCatalog(
+  addonDescriptions?: string[],
+  preferredWebSearchTool: "web_search" | "search_web" = "search_web",
+): string {
+  const catalog = rewriteWebSearchCatalog(TOOL_CATALOG, preferredWebSearchTool);
   if (!addonDescriptions || addonDescriptions.length === 0) {
-    return TOOL_CATALOG;
+    return catalog;
   }
-  return `${TOOL_CATALOG}\n\n## Add-on Tools\nThe following add-on tools are also available:\n${addonDescriptions.map((d) => `- ${d}`).join("\n")}`;
+  return (
+    catalog +
+    "\n\n## Add-on Tools\nThe following add-on tools are also available:\n" +
+    addonDescriptions.map((d) => `- ${d}`).join("\n")
+  );
+}
+
+function resolvePreferredWebSearchTool(
+  activeToolNames?: readonly string[],
+): "web_search" | "search_web" {
+  return activeToolNames?.includes("web_search") ? "web_search" : "search_web";
+}
+
+function rewriteWebSearchToolReferences(
+  text: string,
+  preferredWebSearchTool: "web_search" | "search_web",
+): string {
+  return preferredWebSearchTool === "web_search"
+    ? text.replaceAll("search_web", "web_search")
+    : text;
+}
+
+function rewriteWebSearchCatalog(
+  catalog: string,
+  preferredWebSearchTool: "web_search" | "search_web",
+): string {
+  if (preferredWebSearchTool === "search_web") return catalog;
+  return catalog.replace(
+    /- \*\*Web Search\*\*: search_web —[^\n]+/,
+    '- **Web Search**: web_search — Pi-Atlas broad web discovery and research. Use request.query for one query, request.queries for batch discovery, or request.mode "agent" for an agent research job; use fetch for single-URL reads. Prefer dedicated market, fundamentals, macro, filing, and sentiment tools when they directly answer the question rather than adding generic web search.',
+  );
 }
 
 function formatMemorySection(memoryContext: string): string {

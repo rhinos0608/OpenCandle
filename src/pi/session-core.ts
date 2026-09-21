@@ -20,6 +20,7 @@ import openCandleExtensionCore, {
   type OpenCandleExtensionOptions,
 } from "./opencandle-extension-core.js";
 import { getOpenCandlePiAgentDir, OPENCANDLE_PI_RESOURCE_POLICY } from "./sandbox.js";
+import { preferAtlasWebSearchToolNames } from "./tool-preferences.js";
 
 export interface CreateOpenCandleSessionOptions {
   cwd?: string;
@@ -104,6 +105,7 @@ export async function createOpenCandleSessionCore(
 
   if (options.bindExtensions !== false) {
     await result.session.bindExtensions({});
+    preferAtlasWebSearchTool(result.session);
     await hydrateBoundExtensionModelProviders(result.session.modelRuntime);
   }
 
@@ -121,6 +123,24 @@ export async function createOpenCandleSessionCore(
       await result.session.waitForIdle();
     },
   };
+}
+
+export function preferAtlasWebSearchTool(
+  session: Pick<
+    CreateAgentSessionResult["session"],
+    "getAllTools" | "getActiveToolNames" | "setActiveToolsByName"
+  >,
+): void {
+  const allToolNames = new Set(session.getAllTools().map((tool) => tool.name));
+  if (!allToolNames.has("web_search")) return;
+
+  const currentActiveToolNames = session.getActiveToolNames();
+  const activeToolNames = preferAtlasWebSearchToolNames(
+    currentActiveToolNames,
+    Array.from(allToolNames),
+  );
+  if (activeToolNames.length === currentActiveToolNames.length) return;
+  session.setActiveToolsByName(activeToolNames);
 }
 
 export async function hydrateBoundExtensionModelProviders(

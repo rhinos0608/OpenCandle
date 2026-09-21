@@ -147,6 +147,65 @@ describe("PromptContextBuilder", () => {
     expect(result).toContain("Web Search");
   });
 
+  it("keeps Pi-Atlas web_search vocabulary when only active runtime tools are available", () => {
+    const builder = new PromptContextBuilder();
+    builder.populateFromOptions({
+      activeToolNames: ["web_search", "fetch"],
+    });
+
+    const result = builder.build();
+    expect(result).toContain("**Web Search**: web_search");
+    expect(result).toContain("web_search for CME FedWatch");
+    expect(result).not.toContain("**Web Search**: search_web");
+  });
+
+  it("names Pi-Atlas web_search instead of native search_web when Atlas is active", () => {
+    const builder = new PromptContextBuilder();
+    builder.populateFromOptions({
+      resolvedTurnContext: {
+        userInput: "What is the market pricing for the next Fed meeting?",
+        priorTurns: [],
+        routeKind: "agent_task",
+        workflow: "general_finance_qa",
+        entities: { symbols: [] },
+        slots: {},
+        missingRequired: [],
+        toolBundles: ["macro"],
+        activeToolNames: ["get_economic_data", "get_fear_greed", "web_search"],
+        memoryQueryPlan: {
+          routeKind: "agent_task",
+          workflow: "general_finance_qa",
+          categories: ["investor_profile", "workflow_history"],
+          symbols: [],
+          slotKeys: [],
+        },
+        memoryProvenance: [],
+        promptPlaybook: "agent_task",
+        diagnostics: [],
+        planning: {
+          version: "planning-v1",
+          taskFamily: "macro_allocation_review",
+          commitmentMode: "framework",
+          policyCardId: "macro_allocation_review",
+          evidencePlanId: "macro_allocation_review",
+          answerContractId: "macro_allocation_review",
+          structuredCheckIds: ["required_evidence_present"],
+          capabilityGapIds: ["market_calendar", "forward_rate_probabilities"],
+          behaviorMode: "replacement_active",
+          workspacePlaceholderIds: [],
+          artifactPlaceholderIds: [],
+          diagnostics: [],
+        },
+      } satisfies ResolvedTurnContext,
+    });
+
+    const result = builder.build();
+    expect(result).toContain("**Web Search**: web_search");
+    expect(result).toContain("use get_economic_data");
+    expect(result).toContain("web_search for CME FedWatch");
+    expect(result).not.toContain("**Web Search**: search_web");
+  });
+
   it("guides tool choice between stock screening and single-symbol Yahoo tools", () => {
     const builder = new PromptContextBuilder();
     builder.populateFromOptions({});

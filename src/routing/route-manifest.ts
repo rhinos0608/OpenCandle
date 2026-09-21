@@ -34,10 +34,17 @@ export const TOOL_BUNDLE_TOOLS: Record<ToolBundleName, readonly string[]> = {
     "manage_alerts",
     "daily_watchlist_report",
     "manage_notifications",
+    "web_search",
     "search_web",
   ],
-  options: ["get_option_chain", "get_stock_quote", "search_ticker", "search_web"],
-  macro: ["get_economic_data", "get_event_probabilities", "get_fear_greed", "search_web"],
+  options: ["get_option_chain", "get_stock_quote", "search_ticker", "web_search", "search_web"],
+  macro: [
+    "get_economic_data",
+    "get_event_probabilities",
+    "get_fear_greed",
+    "web_search",
+    "search_web",
+  ],
   sentiment: [
     "get_reddit_sentiment",
     "get_twitter_sentiment",
@@ -45,9 +52,10 @@ export const TOOL_BUNDLE_TOOLS: Record<ToolBundleName, readonly string[]> = {
     "get_sentiment_trend",
     "get_sentiment_summary",
     "get_fear_greed",
+    "web_search",
     "search_web",
   ],
-  sec: ["get_sec_filings", "get_company_overview", "search_web"],
+  sec: ["get_sec_filings", "get_company_overview", "web_search", "search_web"],
   clarification: ["ask_user"],
 };
 

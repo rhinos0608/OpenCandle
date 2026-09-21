@@ -5,7 +5,10 @@ import { join } from "node:path";
 import { SessionManager, SettingsManager } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createOpenCandleSession } from "../../../src/pi/session.js";
-import { hydrateBoundExtensionModelProviders } from "../../../src/pi/session-core.js";
+import {
+  hydrateBoundExtensionModelProviders,
+  preferAtlasWebSearchTool,
+} from "../../../src/pi/session-core.js";
 import { getOpenCandleToolDefinitions } from "../../../src/pi/tool-adapter.js";
 import { createTestModelRuntime } from "../../helpers/pi-model-runtime.js";
 
@@ -21,6 +24,43 @@ describe("createOpenCandleSession", () => {
     process.env = { ...originalEnv };
     globalThis.fetch = originalFetch;
     vi.restoreAllMocks();
+  });
+
+  it("prefers Pi-Atlas web_search over duplicate OpenCandle and Antigravity search tools", () => {
+    const setActiveToolsByName = vi.fn();
+    preferAtlasWebSearchTool({
+      getAllTools: () =>
+        ["web_search", "search_web", "antigravity_websearch", "fetch"].map((name) => ({
+          name,
+        })),
+      getActiveToolNames: () => ["web_search", "search_web", "antigravity_websearch", "fetch"],
+      setActiveToolsByName,
+    } as any);
+
+    expect(setActiveToolsByName).toHaveBeenCalledWith(["web_search", "fetch"]);
+  });
+
+  it("keeps fallback search tools active when Pi-Atlas web_search is unavailable", () => {
+    const setActiveToolsByName = vi.fn();
+    preferAtlasWebSearchTool({
+      getAllTools: () => ["search_web", "antigravity_websearch"].map((name) => ({ name })),
+      getActiveToolNames: () => ["search_web", "antigravity_websearch"],
+      setActiveToolsByName,
+    } as any);
+
+    expect(setActiveToolsByName).not.toHaveBeenCalled();
+  });
+
+  it("keeps fallback search tools active when Pi-Atlas is registered but inactive", () => {
+    const setActiveToolsByName = vi.fn();
+    preferAtlasWebSearchTool({
+      getAllTools: () =>
+        ["web_search", "search_web", "antigravity_websearch"].map((name) => ({ name })),
+      getActiveToolNames: () => ["search_web", "antigravity_websearch"],
+      setActiveToolsByName,
+    } as any);
+
+    expect(setActiveToolsByName).not.toHaveBeenCalled();
   });
 
   it("awaits cache hydration for providers registered during extension binding", async () => {

@@ -452,6 +452,7 @@ export class SessionCoordinator {
     workflowType?: string,
     fallbackContext?: FallbackContext,
     resolvedTurnContext?: ResolvedTurnContext,
+    activeToolNames?: readonly string[],
   ): string {
     const builder = new PromptContextBuilder();
 
@@ -480,6 +481,7 @@ export class SessionCoordinator {
       workflowType,
       memoryContext: combinedMemoryContext || undefined,
       addonToolDescriptions: addonDescriptions,
+      activeToolNames,
       fallbackContext,
       resolvedTurnContext,
     });
